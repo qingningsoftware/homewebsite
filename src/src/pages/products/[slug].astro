@@ -1,0 +1,390 @@
+---
+/**
+ * 产品详情页：man 手册结构（设计稿 §7 / 实施计划任务 8 Step 1–2）
+ *
+ * 段落：NAME（title + 一句话定位）/ SYNOPSIS（适用对象 + 部署形态）/
+ * DESCRIPTION（md 正文直出）/ FEATURES（$ qn --features 输出清单）/
+ * FAQ（details 列表）/ CONTACT 底部 CTA（电话 + 企业微信二维码）。
+ *
+ * GEO（设计稿 §8）：全部正文服务端直出；每页两个 JSON-LD（Product + FAQPage）；
+ * title/description/canonical 由 Base 直出，每页唯一。
+ */
+import { getCollection, render } from 'astro:content';
+import { Image, type ImageMetadata } from 'astro:assets';
+import Base from '../../layouts/Base.astro';
+import TermWindow from '../../components/TermWindow.astro';
+
+// banner / icon 文件名存于 frontmatter（内容集合约定），构建期 glob 一次性解析到图片模块，
+// 经 Astro 图片服务在构建期压缩并转 webp（pacs-icon 1.1MB 由此解决）。
+const banners = import.meta.glob<{ default: ImageMetadata }>('../../../assets/banners/*.png');
+const icons = import.meta.glob<{ default: ImageMetadata }>('../../../assets/icons/*.png');
+
+// 企业微信二维码：assets/qr/qywx.jpg（旧站 socialicons/qywx.jpg 迁移本地化）
+import qywx from '../../../assets/qr/qywx.jpg';
+
+// 公司联系电话：旧站 data.json 公司信息字段 compphone 原文（web1/assets/assets/data.json）。
+// 只取电话；whatsapp / 个人 GitHub / Twitter 等模板作者遗留字段禁止带入新站。
+const PHONE = '0311-83937882';
+
+export async function getStaticPaths() {
+  const products = await getCollection('products');
+  return products.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { data } = entry;
+const { Content } = await render(entry);
+
+const bannerModule = banners[`../../../assets/banners/${data.banner}`];
+const bannerImg = bannerModule ? await bannerModule() : undefined;
+const iconModule = data.icon ? icons[`../../../assets/icons/${data.icon}`] : undefined;
+const iconImg = iconModule ? await iconModule() : undefined;
+
+// JSON-LD ①：Product（name/description 用产品标题与一句话定位，brand 青柠软件）
+const productLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: data.title,
+  description: data.oneLiner,
+  brand: { '@type': 'Brand', name: '青柠软件' },
+  url: new URL(Astro.url.pathname, Astro.site).href,
+};
+
+// JSON-LD ②：FAQPage（mainEntity 由 frontmatter faq 生成，与页面可见问答一致）
+const faqLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: data.faq.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Base title={`${data.title} — 石家庄青柠软件技术有限公司`} description={data.oneLiner} pageName="产品">
+  <script type="application/ld+json" set:html={JSON.stringify(productLd)} />
+  <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
+
+  <main class="qn-man">
+    <!-- 面屑：~ / products / {slug} -->
+    <nav class="qn-crumbs" aria-label="面包屑">
+      <a href="/">~</a><span class="qn-csep" aria-hidden="true"> / </span
+      ><a href="/products/">products</a><span class="qn-csep" aria-hidden="true"> / </span
+      ><span class="qn-chere">{entry.id}</span>
+    </nav>
+
+    <article>
+      <!-- NAME：名称 + 一句话定位 -->
+      <header>
+        <p class="qn-sec">NAME</p>
+        <h1 class="qn-title">
+          {iconImg && (
+            <Image
+              src={iconImg.default}
+              alt=""
+              width={44}
+              densities={[1, 2]}
+              format="webp"
+              class="qn-icon"
+            />
+          )}
+          {data.title}
+        </h1>
+        <p class="qn-oneliner">{data.oneLiner}</p>
+      </header>
+
+      {
+        bannerImg && (
+          <Image
+            src={bannerImg.default}
+            alt={`${data.name} 产品界面横幅`}
+            width={960}
+            densities={[1, 2]}
+            format="webp"
+            loading="eager"
+            class="qn-banner"
+          />
+        )
+      }
+
+      <!-- SYNOPSIS：适用对象 + 部署形态 -->
+      <section class="qn-block">
+        <h2 class="qn-sec">SYNOPSIS</h2>
+        <dl class="qn-syn">
+          <dt>适用对象</dt>
+          <dd>{data.audience}</dd>
+          <dt>部署形态</dt>
+          <dd>{data.deploy}</dd>
+        </dl>
+      </section>
+
+      <!-- DESCRIPTION：md 正文直出（md 自带 `## DESCRIPTION` 段头，样式与上方段头一致） -->
+      <section class="qn-block qn-desc">
+        <Content />
+      </section>
+
+      <!-- FEATURES：$ qn --features 输出的功能清单（终端窗口面板，与全站回放窗口同语言） -->
+      <section class="qn-block">
+        <h2 class="qn-sec">FEATURES</h2>
+        <TermWindow title="$ qn --features">
+          <ul class="qn-feats">
+            {data.features.map((feature) => <li>{feature}</li>)}
+          </ul>
+        </TermWindow>
+      </section>
+
+      <!-- FAQ：details 折叠列表，问答内容全部直出（与页面结构化数据保持一致） -->
+      <section class="qn-block">
+        <h2 class="qn-sec">FAQ</h2>
+        <div class="qn-faqs">
+          {
+            data.faq.map((item) => (
+              <details class="qn-faq">
+                <summary>{item.q}</summary>
+                <p>{item.a}</p>
+              </details>
+            ))
+          }
+        </div>
+      </section>
+
+      <!-- 底部 CTA：电话 + 企业微信二维码 -->
+      <section class="qn-block qn-cta">
+        <h2 class="qn-sec">CONTACT</h2>
+        <p class="qn-cta-line">
+          电话咨询与试用演示：<a class="qn-tel" href={`tel:${PHONE}`}>{PHONE}</a>
+          <span class="qn-cta-dim">（工作日 9:00–18:00）</span>
+        </p>
+        <figure class="qn-qr">
+          <Image
+            src={qywx}
+            alt="青柠软件企业微信二维码"
+            width={144}
+            densities={[1, 2]}
+            format="webp"
+            loading="lazy"
+          />
+          <figcaption>扫码添加企业微信</figcaption>
+        </figure>
+      </section>
+    </article>
+  </main>
+</Base>
+
+<style>
+  /* ---- man 手册版式：等宽段头 + 缩进正文，单栏聚焦 ---- */
+  .qn-man {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 16px 96px;
+  }
+
+  .qn-crumbs {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 32px;
+  }
+
+  .qn-chere {
+    color: var(--text);
+  }
+
+  /* man 段头（NAME/SYNOPSIS/…）：等宽加粗，下衬 1px 分隔线 */
+  .qn-sec {
+    margin: 0 0 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--lime);
+  }
+
+  .qn-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.3;
+  }
+
+  /* 产品图标：mnp 无图标时整段不渲染 */
+  .qn-icon {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+  }
+
+  .qn-oneliner {
+    margin: 10px 0 0;
+    font-size: 16px;
+    color: var(--text-dim);
+  }
+
+  .qn-banner {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: 28px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .qn-block {
+    margin-top: 44px;
+  }
+
+  /* ---- SYNOPSIS：定义列表，man 手册的缩进节奏 ---- */
+  .qn-syn {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 14px;
+  }
+
+  .qn-syn dt {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  .qn-syn dd {
+    margin: 2px 0 14px;
+  }
+
+  .qn-syn dd:last-child {
+    margin-bottom: 0;
+  }
+
+  /* ---- DESCRIPTION：md 直出内容（scoped 作用不到，需 :global） ---- */
+  .qn-desc :global(h2) {
+    margin: 0 0 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--lime);
+  }
+
+  .qn-desc :global(p) {
+    margin: 0 0 16px;
+    font-size: 15px;
+  }
+
+  .qn-desc :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  /* ---- FEATURES：$ qn --features 输出清单（TermWindow 面板内） ---- */
+  .qn-feats {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 2;
+    list-style: none;
+  }
+
+  .qn-feats li::before {
+    content: '✓ ';
+    color: var(--success);
+  }
+
+  /* ---- FAQ：details 折叠列表 ---- */
+  .qn-faqs {
+    display: grid;
+    gap: 10px;
+  }
+
+  .qn-faq {
+    padding: 10px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .qn-faq summary {
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .qn-faq summary:hover {
+    color: var(--lime-hover);
+  }
+
+  .qn-faq p {
+    margin: 10px 0 0;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  /* ---- CONTACT CTA：电话 + 企业微信二维码 ---- */
+  .qn-cta {
+    padding: 20px 18px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .qn-cta-line {
+    margin: 0;
+    font-size: 15px;
+  }
+
+  .qn-tel {
+    font-family: var(--font-mono);
+    font-weight: 700;
+  }
+
+  .qn-cta-dim {
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  .qn-qr {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 16px 0 0;
+  }
+
+  .qn-qr img {
+    display: block;
+    width: 144px;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff; /* 二维码底色，暗色页面上保证可扫 */
+  }
+
+  .qn-qr figcaption {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  /* ---- 移动端：标题与间距收缩 ---- */
+  @media (max-width: 768px) {
+    .qn-man {
+      padding-top: 32px;
+    }
+
+    .qn-title {
+      font-size: 22px;
+    }
+
+    .qn-block {
+      margin-top: 32px;
+    }
+  }
+</style>

@@ -225,7 +225,8 @@ const nav = [
 
     :global(body) {
       padding-top: 40px;
-      padding-bottom: calc(48px + env(safe-area-inset-bottom));
+      /* 底栏总高 = 链接 48px + border-top 1px（另有 safe-area 内边距），body 预留需含 1px 边线 */
+      padding-bottom: calc(49px + env(safe-area-inset-bottom));
     }
   }
 </style>
