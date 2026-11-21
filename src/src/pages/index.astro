@@ -1,32 +1,17 @@
 ---
 import Base from '../layouts/Base.astro';
+import Boot from '../components/Boot.astro';
+import HeroCli from '../components/HeroCli.astro';
 ---
 
 <Base
   title="石家庄青柠软件技术有限公司 — 智慧社区与医疗影像软件研发团队"
   description="青柠软件成立于 2016 年，专注智慧社区平台与医疗影像 PACS 研发：多厂家设备接入、微信小程序、纯 Web 影像诊断，10 项软著、6 套解决方案、2800+ 院校库。"
 >
-  <main class="placeholder">
-    <h1>青柠软件官网</h1>
-    <p><span class="st-ok">站点基座就绪</span>——本页为占位页，首页各区块将在后续任务中逐个落地。</p>
+  <Boot />
+  <main>
+    <!-- §6.2 Hero = 伪命令行（本任务） -->
+    <HeroCli />
+    <!-- §6.3–6.6 后续任务在此追加：产品会话回放、进程列表、Agent 预告 + 迷你留言墙、数据行 -->
   </main>
 </Base>
-
-<style>
-  .placeholder {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 96px 16px 48px;
-  }
-
-  .placeholder h1 {
-    margin: 0 0 12px;
-    color: var(--lime);
-    font-size: 24px;
-  }
-
-  .placeholder p {
-    margin: 0;
-    color: var(--text-dim);
-  }
-</style>

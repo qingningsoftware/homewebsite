@@ -1,0 +1,314 @@
+---
+/**
+ * 首页 Hero = 伪命令行（设计稿 §6.2 / 实施计划任务 4 Step 6）
+ *
+ * GEO 约定：预置提问「~ ❯ 谁是青柠软件」与一句话定位输出全部服务端直出，
+ * 打字机只是 CSS/JS 增强——无 JS 或 reduced-motion 时文本原样静态显示。
+ * 下方是一条真的可输入的命令行：回车调 lib/cli 的 runCommand，
+ * nav 用 location.assign 跳转，print/clear 本地渲染输出区。
+ */
+---
+
+<section class="qn-hero" aria-label="青柠软件简介">
+  <div class="qn-term">
+    <div class="qn-term-head" aria-hidden="true">
+      <span class="qn-term-title">qn@qingning:~</span>
+      <span class="qn-term-dots"><i></i><i></i><i></i></span>
+    </div>
+
+    <div class="qn-term-body">
+      <h1 class="qn-q">
+        <span class="qn-prompt" aria-hidden="true">~ ❯ </span><span
+          id="qn-typed">谁是青柠软件</span><span class="qn-cursor" aria-hidden="true">▊</span>
+      </h1>
+
+      <div class="qn-a">
+        <p class="qn-a-main">
+          青柠软件（石家庄青柠软件技术有限公司，2016 年成立）——专注智慧社区与医疗影像的软件研发团队。
+        </p>
+        <p class="qn-a-sub">
+          智慧社区平台 · 医疗影像 PACS · AI Agent · 软件定制开发：10 项软著、6 套解决方案、2800+ 院校库。
+        </p>
+      </div>
+
+      <form id="qn-cli" class="qn-cli" autocomplete="off">
+        <label class="qn-sr-only" for="qn-cli-input">输入命令（试试 help、products、contact）</label>
+        <span class="qn-prompt" aria-hidden="true">~ ❯</span>
+        <input
+          id="qn-cli-input"
+          name="cmd"
+          type="text"
+          enterkeyhint="go"
+          spellcheck="false"
+          placeholder="输入命令，如 help / products / contact"
+        />
+        <button type="submit" class="qn-cli-go">执行</button>
+      </form>
+
+      <div id="qn-cli-out" class="qn-out" aria-live="polite"></div>
+
+      <p class="qn-hint">提示：输入 help 查看全部命令；products、pacs、contact 可直接跳转对应页面。</p>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { runCommand } from '../lib/cli';
+
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const typed = document.getElementById('qn-typed');
+  const answer = document.querySelector('.qn-a');
+  const cursor = document.querySelector('.qn-cursor');
+  const form = document.getElementById('qn-cli') as HTMLFormElement | null;
+  const input = document.getElementById('qn-cli-input') as HTMLInputElement | null;
+  const out = document.getElementById('qn-cli-out');
+
+  /* ---------- 预置提问打字机（纯增强，文本已在 HTML 里） ---------- */
+  function startTypewriter() {
+    if (!typed || reduce || !answer || !cursor) return; // reduced-motion：静态直出，不打字
+    const text = typed.textContent ?? '';
+    if (!text) return;
+    answer.classList.add('qn-waiting'); // 打完再亮出答案
+    typed.textContent = '';
+    let i = 0;
+    const timer = setInterval(() => {
+      i += 1;
+      typed.textContent = text.slice(0, i);
+      if (i >= text.length) {
+        clearInterval(timer);
+        answer.classList.remove('qn-waiting');
+        cursor.classList.add('qn-idle'); // 提问打完，光标转为慢闪
+      }
+    }, 110);
+  }
+
+  // boot 层结束时再打字；boot 不存在（reduced-motion / 本会话已播放）则立即开始。
+  // 1.6s 兜底：万一 boot 层异常未派发事件，打字机也不会被卡住。
+  const boot = document.getElementById('qn-boot');
+  let started = false;
+  function startOnce() {
+    if (started) return;
+    started = true;
+    startTypewriter();
+  }
+  if (boot) {
+    document.addEventListener('qn-boot-done', startOnce, { once: true });
+    setTimeout(startOnce, 1600);
+  } else {
+    startOnce();
+  }
+
+  /* ---------- 真命令行：回车执行 runCommand ---------- */
+  function appendLine(text: string, cls: string) {
+    const div = document.createElement('div');
+    div.className = `qn-out-line ${cls}`;
+    div.textContent = text;
+    out?.appendChild(div);
+  }
+
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!input || !out) return;
+    const raw = input.value;
+    if (!raw.trim()) return;
+    appendLine(`~ ❯ ${raw}`, 'qn-out-echo');
+    const result = runCommand(raw);
+    if (result.kind === 'nav') {
+      location.assign(result.to);
+      return;
+    }
+    if (result.kind === 'clear') {
+      out.replaceChildren();
+    } else {
+      for (const line of result.lines) appendLine(line, 'qn-out-print');
+    }
+    input.value = '';
+  });
+</script>
+
+<style>
+  .qn-hero {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: clamp(48px, 10vh, 96px) 16px 64px;
+  }
+
+  /* ---- 终端窗口面板 ---- */
+  .qn-term {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .qn-term-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .qn-term-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .qn-term-dots i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .qn-term-body {
+    padding: 28px 20px 20px;
+  }
+
+  /* ---- 预置提问（服务端直出全文，打字机只是增强） ---- */
+  .qn-q {
+    margin: 0 0 18px;
+    color: var(--lime);
+    font-size: clamp(22px, 5vw, 34px);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .qn-prompt {
+    color: var(--text-dim);
+  }
+
+  /* 光标闪烁；qn-idle 打完转慢闪。reduced-motion 下由全局总闸停为常亮 */
+  .qn-cursor {
+    color: var(--lime);
+    animation: qn-blink 0.9s steps(1) infinite;
+  }
+
+  .qn-cursor.qn-idle {
+    animation-duration: 1.6s;
+  }
+
+  @keyframes qn-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* ---- 一句话定位输出（JS 打字期间临时隐藏，无 JS / reduced-motion 常显） ---- */
+  .qn-a {
+    margin: 0 0 24px;
+  }
+
+  .qn-a p {
+    margin: 0;
+  }
+
+  .qn-a-main {
+    color: var(--text);
+    font-size: 16px;
+  }
+
+  .qn-a-sub {
+    margin-top: 6px !important;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  .qn-a.qn-waiting {
+    visibility: hidden; /* 打字机增强进行中：占位不跳动，打完亮出 */
+  }
+
+  /* ---- 真命令行 ---- */
+  .qn-cli {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+  }
+
+  .qn-cli:focus-within {
+    border-color: var(--lime);
+  }
+
+  .qn-cli input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+  }
+
+  .qn-cli input:focus {
+    outline: none; /* 焦点态由容器的 lime 描边承担 */
+  }
+
+  .qn-cli input::placeholder {
+    color: var(--text-dim);
+  }
+
+  .qn-cli-go {
+    padding: 4px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-dim);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .qn-cli-go:hover {
+    border-color: var(--lime);
+    color: var(--lime);
+  }
+
+  /* ---- 输出区（行由 JS 动态创建，故用 :global） ---- */
+  .qn-out {
+    margin-top: 12px;
+  }
+
+  .qn-out :global(.qn-out-line) {
+    padding: 2px 12px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .qn-out :global(.qn-out-echo) {
+    color: var(--lime);
+  }
+
+  .qn-out :global(.qn-out-print) {
+    color: var(--text);
+  }
+
+  .qn-hint {
+    margin: 16px 0 0;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  /* ---- 无障碍辅助类 ---- */
+  .qn-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>

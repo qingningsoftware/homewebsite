@@ -1,0 +1,114 @@
+---
+/**
+ * Boot 层（设计稿 §6.1 / 实施计划任务 4 Step 5）
+ * 进站 0.8s 黑屏逐行文字，点击/任意键/1.2s 自动均可跳过；
+ * sessionStorage['qn-boot-played'] 记录后同会话不重播。
+ *
+ * 交互层约定：boot 是纯增强——服务端直出页面本体的正文不依赖它。
+ * 内联脚本首行检查 prefers-reduced-motion 与播放记录，不满足则立即移除
+ * 覆盖层（页面首次绘制前生效）；<noscript> 兜底保证无 JS 时不遮挡正文。
+ * 服务端 HTML 不含 boot 内容时（el 为 null）脚本安全退出。
+ */
+---
+
+<div id="qn-boot" class="qn-boot" aria-hidden="true">
+  <pre class="qn-boot-lines"><span class="qn-boot-line qn-boot-l1">QN-OS v3.0 initializing ... <b class="qn-ok">OK</b></span><span class="qn-boot-line qn-boot-l2">loading: 社区 医疗 支付 agent ... <b class="qn-ok">OK</b></span></pre>
+</div>
+
+<noscript>
+  <style>
+    /* 无 JS：boot 层不出现（无跳过能力，直接不遮挡正文） */
+    #qn-boot {
+      display: none;
+    }
+  </style>
+</noscript>
+
+<script is:inline>
+  (function () {
+    var el = document.getElementById('qn-boot');
+    if (!el) return;
+
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var played = false;
+    try {
+      played = sessionStorage.getItem('qn-boot-played') === '1';
+    } catch (e) {
+      /* 隐私模式等场景拿不到 sessionStorage：当作未播放 */
+    }
+    // reduced-motion 或本会话已播放过：不插 boot 层，立即移除
+    if (reduce || played) {
+      el.remove();
+      return;
+    }
+
+    var done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      try {
+        sessionStorage.setItem('qn-boot-played', '1');
+      } catch (e) {
+        /* 忽略：只是同会话不重播的记录 */
+      }
+      el.remove();
+      // HeroCli 打字机监听：boot 结束后再开始
+      document.dispatchEvent(new CustomEvent('qn-boot-done'));
+    }
+
+    el.addEventListener('click', finish);
+    document.addEventListener('keydown', finish);
+    // 动画 0.8s 演完，1.2s 自动跳过
+    setTimeout(finish, 1200);
+  })();
+</script>
+
+<style>
+  .qn-boot {
+    position: fixed;
+    inset: 0;
+    z-index: 100; /* 压过扫描线(90)与 tmux 状态栏(50) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    cursor: pointer;
+  }
+
+  .qn-boot-lines {
+    margin: 0;
+    padding: 0 24px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 2;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  /* 逐行揭示：两行共 0.8s（0s/0.4s 错峰） */
+  .qn-boot-line {
+    display: block;
+    opacity: 0;
+    animation: qn-boot-in 0.35s ease-out forwards;
+  }
+
+  .qn-boot-l2 {
+    animation-delay: 0.4s;
+  }
+
+  .qn-ok {
+    color: var(--lime);
+    font-weight: 600;
+  }
+
+  @keyframes qn-boot-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>
