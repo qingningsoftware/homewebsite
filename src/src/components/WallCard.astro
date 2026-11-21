@@ -1,0 +1,249 @@
+---
+/**
+ * 留言墙卡片（实施计划任务 6 Step 7；设计稿 §12.3）
+ *
+ * 终端窗样式：<article> + `● ● ●` 文件名标题 + 正文 + [YYYY-MM-DD] + 匿名，
+ * 回复以 `↳` 缩进行挂在卡内（仅一层深度）。
+ *
+ * 样式必须 is:global：客户端脚本（wall.ts）用 createElement 逐节点搭建
+ * 本机留言卡，拿不到 Astro 的 scoped 哈希——统一类名前缀 qn-card-* 防冲突。
+ * 散布定位由 props.pos 直出内联 style（x/y/r/w/z，构建期 layoutCards 生成）。
+ */
+import type { ScatterCard } from '../lib/scatter';
+
+interface Props {
+  /** 留言 id（m01…m12） */
+  id: string;
+  /** 广播卡 | 打卡卡 */
+  type: 'broadcast' | 'checkin';
+  /** 正文（服务端直出，一字不改） */
+  text: string;
+  /** 绝对日期 YYYY-MM-DD */
+  date: string;
+  /** 预置回复（仅一层） */
+  replies: Array<{ id: string; text: string }>;
+  /** 构建期散布坐标 */
+  pos: ScatterCard;
+}
+
+const { id, type, text, date, replies, pos } = Astro.props;
+const isBroadcast = type === 'broadcast';
+const fileName = isBroadcast ? 'broadcast.log' : `msg_${id}.log`;
+---
+
+<article
+  class="qn-card"
+  data-qn-id={id}
+  style={`left:${pos.x.toFixed(1)}px;top:${pos.y.toFixed(1)}px;width:${pos.w.toFixed(1)}px;z-index:${pos.z};--fr:${pos.r.toFixed(2)}deg`}
+>
+  <div class="qn-card-drop">
+    <div class="qn-card-tilt">
+      <header class="qn-card-head">
+        <span class="qn-card-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="qn-card-file">{fileName}</span>
+        {isBroadcast && <span class="qn-card-tag">[广播]</span>}
+      </header>
+      <div class="qn-card-body">
+        <p class="qn-card-text">{text}</p>
+        {
+          replies.length > 0 && (
+            <div class="qn-card-replies">
+              {replies.map((r) => (
+                <p class="qn-card-reply">
+                  <span class="qn-card-arrow" aria-hidden="true">
+                    ↳
+                  </span>
+                  {r.text}
+                </p>
+              ))}
+            </div>
+          )
+        }
+      </div>
+      <footer class="qn-card-meta">
+        <span class="qn-card-date">{`[${date}]`}</span>
+        <span class="qn-card-author">匿名</span>
+      </footer>
+    </div>
+  </div>
+</article>
+
+<style is:global>
+  /* ============================================================
+     留言墙卡片（全局：本机留言卡由 wall.ts 逐节点搭建，无法带 scoped 哈希）
+     ============================================================ */
+
+  /* ---- 定位层：内联 left/top 定点，translate(-50%,-50%) 中心对齐；
+          待机浮动 ±5px 只在 .qn-float 时启用（IO 视口内才挂，性能护栏） ---- */
+  .qn-card {
+    position: absolute;
+    transform: translate(-50%, -50%);
+  }
+
+  .qn-card.qn-float {
+    animation: qn-card-float var(--fd, 7s) ease-in-out var(--fdel, 0s) infinite alternate;
+  }
+
+  .qn-card:hover {
+    animation-play-state: paused; /* 悬停时停浮、扶正（下方 tilt 层） */
+  }
+
+  @keyframes qn-card-float {
+    from {
+      transform: translate(-50%, -50%);
+    }
+    to {
+      transform: translate(-50%, calc(-50% - 5px));
+    }
+  }
+
+  /* ---- 落钉进场层：默认静止；脚本武装（.qn-armed）后未落定的卡抬高隐藏，
+          加 .qn-dropped 后带 stagger（--sd）落回原位 ----
+          无 JS / reduced-motion 时永不武装 → 卡片静态完整直出 */
+  .qn-armed .qn-card .qn-card-drop {
+    transition:
+      transform 0.55s cubic-bezier(0.2, 0.8, 0.3, 1.18) var(--sd, 0s),
+      opacity 0.32s linear var(--sd, 0s);
+  }
+
+  .qn-armed .qn-card:not(.qn-dropped) .qn-card-drop {
+    transform: translateY(-46px);
+    opacity: 0;
+  }
+
+  /* ---- 扶正层：构建期角度 --fr；悬停归零 + 青柠辉光（纯 CSS） ---- */
+  .qn-card-tilt {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    transform: rotate(var(--fr, 0deg));
+    transition:
+      transform 0.35s ease,
+      border-color 0.35s ease,
+      box-shadow 0.35s ease;
+  }
+
+  .qn-card:hover .qn-card-tilt {
+    transform: rotate(0deg);
+    border-color: var(--lime);
+    box-shadow: 0 0 18px rgba(163, 230, 53, 0.22);
+  }
+
+  /* ---- 卡头：三圆点 + 文件名 + [广播] 标签 ---- */
+  .qn-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .qn-card-dots {
+    display: flex;
+    gap: 5px;
+    flex: none;
+  }
+
+  .qn-card-dots i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .qn-card-file {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .qn-card-tag {
+    flex: none;
+    margin-left: auto;
+    color: var(--warning);
+    font-weight: 700;
+  }
+
+  /* ---- 卡身：正文 4 行截断（HTML 里全文直出，clamp 仅视觉）、回复 ↳ 缩进 ---- */
+  .qn-card-body {
+    padding: 10px 12px 6px;
+  }
+
+  .qn-card-text {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--text);
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .qn-card-replies {
+    margin-top: 6px;
+  }
+
+  .qn-card-reply {
+    margin: 2px 0 0;
+    padding-left: 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .qn-card-arrow {
+    color: var(--lime);
+    margin-right: 4px;
+  }
+
+  /* ---- 卡脚：[绝对日期] + 匿名 ---- */
+  .qn-card-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 12px 9px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* ---- 本机留言卡的 × 删除（悬停浮现） ---- */
+  .qn-card-del {
+    flex: none;
+    margin-left: auto;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .qn-card:hover .qn-card-del,
+  .qn-card-del:focus-visible {
+    opacity: 1;
+  }
+
+  .qn-card-del:hover {
+    color: var(--error);
+    background: var(--bg);
+  }
+</style>

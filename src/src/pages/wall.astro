@@ -1,0 +1,330 @@
+---
+/**
+ * /wall/ 随机散布留言墙（实施计划任务 6；设计稿 §12.3）
+ *
+ * 服务端直出：12 张预置卡（构建期 layoutCards(12, 20261121) 定点，内联 style）
+ * + `$ wall --write` 虚线留言卡 + 页头说明——正文零 JS 依赖（GEO）。
+ * `~/my-messages` 本机区服务端不渲染，wall.ts 检测到本机留言时才插入。
+ */
+import Base from '../layouts/Base.astro';
+import WallCard from '../components/WallCard.astro';
+import { layoutCards, scatterCanvasHeight } from '../lib/scatter';
+import wallMessages from '../../data/wall-messages.json';
+
+// 散布布局：固定种子 20261121，同一构建产物所有人看到相同 HTML（SEO 稳定、无 CLS）
+const cards = layoutCards(wallMessages.length, 20261121);
+
+// 画布高按 13 槽算：12 张预置卡 + 虚线留言卡占第 13 槽（第 4 行居中）
+const canvasHeight = scatterCanvasHeight(wallMessages.length + 1);
+const writeX = 600; // 4 列画布的水平正中
+const writeY = 3 * 170 + 85; // 第 4 行行心（row*unitRow + unitRow/2）
+
+const broadcastCount = wallMessages.filter((m) => m.type === 'broadcast').length;
+---
+
+<Base
+  title="留言墙 — 青柠软件（匿名留言 · 仅存本机）"
+  description="青柠软件留言墙：散布着公司广播与访客打卡卡。匿名留言、匿名回复，所有留言只保存在你自己的浏览器里，不经过任何服务器。"
+  pageName="留言墙"
+>
+  <main class="qn-wall">
+    <header class="qn-wall-head">
+      <p class="qn-wall-cmd" aria-hidden="true">qn@qingning:~$ tail -f /wall/msgs.log</p>
+      <h1 class="qn-wall-title">留言墙</h1>
+      <p class="qn-wall-sub">
+        匿名留言 · 仅保存在你的浏览器，不经过服务器 · 共 {wallMessages.length} 条信号（其中广播
+        {broadcastCount} 条）
+      </p>
+    </header>
+
+    <div class="qn-canvas-wrap">
+      <div class="qn-canvas" id="qn-canvas" style={`min-height:${canvasHeight}px`}>
+        {
+          wallMessages.map((m, i) => (
+            <WallCard
+              id={m.id}
+              type={m.type}
+              text={m.text}
+              date={m.date}
+              replies={m.replies}
+              pos={cards[i]}
+            />
+          ))
+        }
+
+        <!-- 墙中央虚线留言卡（占第 13 槽，居中） -->
+        <section
+          class="qn-card qn-write"
+          style={`left:${writeX}px;top:${writeY}px;width:320px;z-index:99;--fr:-1.5deg`}
+          aria-label="写一条留言"
+        >
+          <div class="qn-card-drop">
+            <div class="qn-card-tilt qn-write-tilt">
+              <header class="qn-card-head">
+                <span class="qn-card-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="qn-card-file">$ wall --write</span>
+              </header>
+              <form id="qn-wall-form" class="qn-write-form">
+                <label class="qn-sr-only" for="qn-wall-input">留言内容（匿名，最多 200 字）</label>
+                <textarea
+                  id="qn-wall-input"
+                  maxlength="200"
+                  rows="3"
+                  placeholder="打卡 / 提问 / 汇报 sighting…（匿名，最多 200 字）"></textarea>
+                <div class="qn-write-row">
+                  <span class="qn-write-hint">匿名 · 仅保存在你的浏览器，不经过服务器</span>
+                  <button type="submit" class="qn-write-btn">发送</button>
+                </div>
+                <p class="qn-write-status" id="qn-wall-status" role="status"></p>
+                <p class="qn-write-more">
+                  商务合作请走 <a href="/contact/">/contact/</a>，这面墙只收氛围。
+                </p>
+              </form>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <!-- ~/my-messages 本机区：服务端不渲染，wall.ts 有本机留言时插入 -->
+  </main>
+</Base>
+
+<script>
+  import { initWall } from '../scripts/wall';
+  initWall();
+</script>
+
+<style is:global>
+  /* ============================================================
+     /wall/ 页面样式（全局：本机区与部分覆盖作用于脚本创建的节点）
+     ============================================================ */
+
+  .qn-wall {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 40px 16px 96px;
+  }
+
+  .qn-wall-head {
+    max-width: 1020px;
+    margin: 0 auto 28px;
+    font-family: var(--font-mono);
+  }
+
+  .qn-wall-cmd {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .qn-wall-title {
+    margin: 0;
+    font-size: 26px;
+    color: var(--lime);
+  }
+
+  .qn-wall-sub {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .qn-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ---- 散布画布：1200px 设计宽；桌面居中，中屏横向滚动，≤768px 纵向瀑布 ---- */
+  .qn-canvas-wrap {
+    overflow-x: auto;
+  }
+
+  .qn-canvas {
+    position: relative;
+    width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* ---- 虚线留言卡 ---- */
+  .qn-write .qn-card-tilt {
+    background: transparent;
+    border-style: dashed;
+    border-color: var(--text-dim);
+  }
+
+  .qn-write:hover .qn-card-tilt {
+    border-color: var(--lime);
+    background: var(--panel);
+  }
+
+  .qn-write-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .qn-write-form textarea {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    resize: vertical;
+    min-height: 64px;
+  }
+
+  .qn-write-form textarea:focus {
+    border-color: var(--lime);
+    outline: none;
+  }
+
+  .qn-write-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .qn-write-hint {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .qn-write-btn {
+    flex: none;
+    padding: 6px 16px;
+    background: var(--lime);
+    border: 0;
+    border-radius: 4px;
+    color: #0a0a0a;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .qn-write-btn:hover {
+    background: var(--lime-hover);
+  }
+
+  .qn-write-status {
+    margin: 0;
+    min-height: 1em;
+    font-size: 11px;
+    color: var(--success);
+  }
+
+  .qn-write-more {
+    margin: 0;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* ---- ~/my-messages 本机区（脚本按需创建） ---- */
+  .qn-my {
+    max-width: 1020px;
+    margin: 36px auto 0;
+    font-family: var(--font-mono);
+  }
+
+  .qn-my-title {
+    margin: 0 0 4px;
+    font-size: 16px;
+    color: var(--lime);
+  }
+
+  .qn-my-note {
+    margin: 0 0 14px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .qn-my-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 16px;
+  }
+
+  /* 本机卡在网格内回归文档流：不绝对定位、不浮动，保留落钉与悬停扶正 */
+  .qn-my .qn-card {
+    position: static;
+    transform: none;
+    animation: none;
+  }
+
+  /* 本机卡插入即落钉（不依赖 armed：武装只作用于散布画布内部） */
+  .qn-local .qn-card-drop {
+    animation: qn-local-drop 0.55s cubic-bezier(0.2, 0.8, 0.3, 1.18) both;
+  }
+
+  @keyframes qn-local-drop {
+    from {
+      opacity: 0;
+      transform: translateY(-46px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .qn-my-foot {
+    margin-top: 14px;
+  }
+
+  .qn-my-clear {
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .qn-my-clear:hover {
+    color: var(--error);
+    border-color: var(--error);
+  }
+
+  /* ---- ≤768px：纵向瀑布（保留落钉进场），散布改直排 ---- */
+  @media (max-width: 768px) {
+    .qn-wall {
+      padding-top: 24px;
+    }
+
+    .qn-canvas-wrap {
+      overflow-x: visible;
+    }
+
+    .qn-canvas {
+      width: 100%;
+      min-height: 0 !important; /* 内联 min-height 让位于文档流 */
+    }
+
+    .qn-card {
+      position: static;
+      transform: none;
+      width: 100% !important; /* 压过内联 width */
+      margin: 0 0 14px;
+      animation: none !important; /* 瀑布流不做待机浮动（含 .qn-float） */
+    }
+
+    .qn-card-tilt {
+      transform: none; /* 直排下去散角，保留落钉与悬停扶正 */
+    }
+  }
+</style>
