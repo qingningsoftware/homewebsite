@@ -60,6 +60,21 @@ const fileName = isBroadcast ? 'broadcast.log' : `msg_${id}.log`;
           )
         }
       </div>
+      <div class="qn-card-replybox">
+        <button type="button" class="qn-card-replybtn">
+          <span class="qn-card-arrow" aria-hidden="true">↳</span> 回复
+        </button>
+        <form class="qn-reply-form" hidden>
+          <input
+            class="qn-reply-input"
+            maxlength="200"
+            placeholder="匿名回复"
+            aria-label="匿名回复"
+          />
+          <button type="submit" class="qn-reply-send">发送</button>
+          <span class="qn-reply-status" role="status"></span>
+        </form>
+      </div>
       <footer class="qn-card-meta">
         <span class="qn-card-date">{`[${date}]`}</span>
         <span class="qn-card-author">匿名</span>
@@ -86,6 +101,7 @@ const fileName = isBroadcast ? 'broadcast.log' : `msg_${id}.log`;
 
   .qn-card:hover {
     animation-play-state: paused; /* 悬停时停浮、扶正（下方 tilt 层） */
+    z-index: 99 !important; /* 压过内联 z-index：叠住的卡悬停时置顶，回复框可点 */
   }
 
   @keyframes qn-card-float {
@@ -245,5 +261,92 @@ const fileName = isBroadcast ? 'broadcast.log' : `msg_${id}.log`;
   .qn-card-del:hover {
     color: var(--error);
     background: var(--bg);
+  }
+
+  /* ---- 回复输入（设计稿 §12.4：对任意卡可匿名回复，缩进行追加在该卡内） ---- */
+  .qn-card-replybox {
+    padding: 0 12px 8px;
+  }
+
+  .qn-card-replybtn {
+    padding: 2px 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.4;
+    cursor: pointer;
+  }
+
+  .qn-card-replybtn:hover,
+  .qn-card-replybtn:focus-visible {
+    color: var(--lime);
+  }
+
+  .qn-reply-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .qn-reply-input {
+    flex: 1 1 100px;
+    min-width: 0;
+    padding: 4px 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .qn-reply-input:focus {
+    border-color: var(--lime);
+    outline: none;
+  }
+
+  .qn-reply-send {
+    flex: none;
+    padding: 3px 10px;
+    background: var(--lime);
+    border: 0;
+    border-radius: 3px;
+    color: #0a0a0a;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .qn-reply-send:hover {
+    background: var(--lime-hover);
+  }
+
+  .qn-reply-status {
+    flex: 1 0 100%;
+    min-height: 0;
+    font-size: 10px;
+    color: var(--warning);
+  }
+
+  /* 本机回复缩进行落定动效（追加时挂 .qn-reply-new；reduced-motion 由总闸停掉） */
+  .qn-card-reply.qn-reply-new {
+    animation: qn-reply-drop 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.18) both;
+  }
+
+  @keyframes qn-reply-drop {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 </style>

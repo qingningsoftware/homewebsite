@@ -1,18 +1,22 @@
 /**
  * 留言墙渐进增强（实施计划任务 6 Step 8–9；设计稿 §12.3–12.4）
  *
- * 职责（正文早已服务端直出，这里只做动效与本机留言）：
+ * 职责（正文早已服务端直出，这里只做动效与本机留言/回复）：
  * 1. 进场落钉：武装画布 → IntersectionObserver 触发一次，同批卡片 stagger 0.15s；
  * 2. 待机浮动：仅视口内卡片挂 .qn-float（±5px、异周期，性能护栏）；
  * 3. 本机留言：提交 → addMessage → ~/my-messages 区插入新卡（同款落钉）→ 平滑滚动定位；
- * 4. 删除/清空：× 单条删除、清空按钮，操作后同步视图与计数。
+ * 4. 回复（§12.4 任意卡可匿名回复）：卡内「↳ 回复」展开内联输入 → addReply →
+ *    该卡内追加缩进行；初始化时把已存本机回复回显到对应卡（刷新留存）；
+ * 5. 删除/清空：× 单条删除、清空按钮，操作后同步视图与计数。
  *
  * 安全铁律：所有动态 DOM 一律 createElement + textContent 搭建，
  * 禁止 innerHTML 拼接任何用户输入（防 XSS）。
- * 无 JS / prefers-reduced-motion：不武装、不浮动，卡片静态完整呈现。
+ * 无 JS / prefers-reduced-motion：不武装、不浮动，卡片静态完整呈现
+ * （回复框 SSR 时 hidden，无 JS 不展开，正文不受影响）。
  */
 import {
   addMessage,
+  addReply,
   clearLocal,
   loadStore,
   removeMessage,
@@ -77,6 +81,78 @@ function armCanvas(canvas: HTMLElement): void {
   canvasCards(canvas).forEach((c) => io.observe(c));
 }
 
+/** 搭回复框（↳ 回复按钮 + 内联输入表单；与 WallCard.astro 直出结构一致） */
+function buildReplyBox(): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'qn-card-replybox';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'qn-card-replybtn';
+  const arrow = document.createElement('span');
+  arrow.className = 'qn-card-arrow';
+  arrow.setAttribute('aria-hidden', 'true');
+  arrow.textContent = '↳';
+  btn.appendChild(arrow);
+  btn.appendChild(document.createTextNode(' 回复'));
+  const form = document.createElement('form');
+  form.className = 'qn-reply-form';
+  form.hidden = true;
+  const input = document.createElement('input');
+  input.className = 'qn-reply-input';
+  input.maxLength = 200;
+  input.placeholder = '匿名回复';
+  input.setAttribute('aria-label', '匿名回复');
+  const send = document.createElement('button');
+  send.type = 'submit';
+  send.className = 'qn-reply-send';
+  send.textContent = '发送';
+  const status = document.createElement('span');
+  status.className = 'qn-reply-status';
+  status.setAttribute('role', 'status');
+  form.append(input, send, status);
+  box.append(btn, form);
+  return box;
+}
+
+/** 搭一张回复缩进行（用户回复统一「匿名回复：」前缀；textContent 防 XSS） */
+function buildReplyLine(text: string, isNew: boolean): HTMLElement {
+  const line = document.createElement('p');
+  line.className = 'qn-card-reply';
+  if (isNew) line.classList.add('qn-reply-new'); // 追加时轻微落钉；reduced-motion 由总闸停掉
+  const arrow = document.createElement('span');
+  arrow.className = 'qn-card-arrow';
+  arrow.setAttribute('aria-hidden', 'true');
+  arrow.textContent = '↳';
+  line.appendChild(arrow);
+  line.appendChild(document.createTextNode(`匿名回复：${text}`));
+  return line;
+}
+
+/** 把一条回复追加到卡的缩进区（容器不存在则建） */
+function appendReplyToCard(card: HTMLElement, text: string, isNew: boolean): void {
+  const body = card.querySelector('.qn-card-body');
+  if (!body) return;
+  let list = body.querySelector<HTMLElement>('.qn-card-replies');
+  if (!list) {
+    list = document.createElement('div');
+    list.className = 'qn-card-replies';
+    body.appendChild(list);
+  }
+  list.appendChild(buildReplyLine(text, isNew));
+}
+
+/** 回显：把已存本机回复渲染到对应卡（预置/本机卡统一按 data-qn-id 找） */
+export function renderStoredReplies(): void {
+  const { replies } = loadStore();
+  for (const cardId of Object.keys(replies)) {
+    const card = document.querySelector<HTMLElement>(`.qn-card[data-qn-id="${cardId}"]`);
+    if (!card) continue;
+    for (const r of replies[cardId]) {
+      appendReplyToCard(card, r.text, false);
+    }
+  }
+}
+
 /** 搭一张本机留言卡（结构与 WallCard.astro 直出卡一致；textContent 防 XSS） */
 function buildLocalCard(entry: { id: string; text: string; createdAt: number }): HTMLElement {
   const card = document.createElement('article');
@@ -124,7 +200,7 @@ function buildLocalCard(entry: { id: string; text: string; createdAt: number }):
   author.textContent = '匿名';
   meta.append(time, author);
 
-  tilt.append(head, body, meta);
+  tilt.append(head, body, buildReplyBox(), meta);
   drop.appendChild(tilt);
   card.appendChild(drop);
   return card;
@@ -189,7 +265,7 @@ function scrollToCard(card: HTMLElement, reduce: boolean): void {
   });
 }
 
-/** 入口：绑定表单、删除/清空事件，武装落钉与浮动 */
+/** 入口：绑定表单、删除/清空/回复事件，武装落钉与浮动 */
 export function initWall(): void {
   const canvas = document.getElementById('qn-canvas') as HTMLElement | null;
   const form = document.getElementById('qn-wall-form') as HTMLFormElement | null;
@@ -198,6 +274,12 @@ export function initWall(): void {
   if (!canvas || !form || !input || !status) return;
 
   const reduce = isReducedMotion();
+
+  // document 级委托监听器只装一次（重复 initWall 不会叠加；每次调用仍重绑当前 DOM 的表单）
+  if (!wired) {
+    wired = true;
+    wireDelegates();
+  }
 
   // ---- 提交本机留言 ----
   form.addEventListener('submit', (ev) => {
@@ -222,7 +304,20 @@ export function initWall(): void {
     if (card) scrollToCard(card, reduce);
   });
 
-  // ---- × 单条删除（事件委托）----
+  // ---- 初始化：回显已存本机回复 + 本机区 + 落钉武装 ----
+  renderStoredReplies();
+  renderMySection(canvas);
+  if (!reduce && 'IntersectionObserver' in window) {
+    armCanvas(canvas);
+  }
+}
+
+/** 委托监听器装配标记（document 级监听器跨 DOM 重建存活，只能装一次） */
+let wired = false;
+
+/** 装配 document 级事件委托：× 删除 / 清空 / 回复展开 / 回复提交 */
+function wireDelegates(): void {
+  // ---- × 单条删除（仅本机留言卡有 ×）----
   document.addEventListener('click', (ev) => {
     const btn = (ev.target as Element | null)?.closest<HTMLElement>('.qn-card-del');
     if (!btn) return;
@@ -240,7 +335,7 @@ export function initWall(): void {
     }
   });
 
-  // ---- 清空按钮（事件委托，本机区由脚本按需创建）----
+  // ---- 清空按钮（本机区由脚本按需创建）----
   document.addEventListener('click', (ev) => {
     const btn = (ev.target as Element | null)?.closest<HTMLElement>('#qn-my-clear');
     if (!btn) return;
@@ -249,9 +344,38 @@ export function initWall(): void {
     document.getElementById('qn-my')?.remove();
   });
 
-  // ---- 初始化本机区（有留存留言才出现）+ 落钉武装 ----
-  renderMySection(canvas);
-  if (!reduce && 'IntersectionObserver' in window) {
-    armCanvas(canvas);
-  }
+  // ---- 「↳ 回复」展开/收起内联输入框（展开即聚焦）----
+  document.addEventListener('click', (ev) => {
+    const btn = (ev.target as Element | null)?.closest<HTMLElement>('.qn-card-replybtn');
+    if (!btn) return;
+    const form = btn.parentElement?.querySelector<HTMLFormElement>('.qn-reply-form');
+    if (!form) return;
+    form.hidden = !form.hidden;
+    if (!form.hidden) form.querySelector<HTMLInputElement>('.qn-reply-input')?.focus();
+  });
+
+  // ---- 提交回复：addReply → 卡内追加缩进行（约束同留言：空拒、>200 截断）----
+  document.addEventListener('submit', (ev) => {
+    const form = ev.target as Element | null;
+    if (!form?.matches('.qn-reply-form')) return;
+    ev.preventDefault();
+    const card = form.closest<HTMLElement>('.qn-card');
+    const cardId = card?.dataset.qnId;
+    const input = form.querySelector<HTMLInputElement>('.qn-reply-input');
+    const status = form.querySelector<HTMLElement>('.qn-reply-status');
+    if (!card || !cardId || !input || !status) return;
+
+    const r = addReply(cardId, input.value);
+    if (!r.ok) {
+      status.textContent =
+        r.reason === 'empty'
+          ? '先写点什么再发送。'
+          : `本机留言已满（上限 ${MAX_ENTRIES} 条），先删几条再发。`;
+      return;
+    }
+    input.value = '';
+    status.textContent = '';
+    form.hidden = true;
+    appendReplyToCard(card, r.msg.text, true);
+  });
 }

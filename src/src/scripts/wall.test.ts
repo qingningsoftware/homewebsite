@@ -9,12 +9,38 @@ import { loadStore, clearLocal } from '../lib/wall-local';
  * IntersectionObserver 在 jsdom 缺失 → initWall 自动跳过落钉武装（降级路径顺带覆盖）。
  */
 
-/** 按 wall.astro 的结构搭最小 DOM */
+/** 按 wall.astro 的结构搭最小 DOM（卡片含回复框，结构与 WallCard.astro 一致） */
 function buildPageDom(): { canvas: HTMLElement; form: HTMLFormElement; input: HTMLTextAreaElement; status: HTMLElement } {
   const canvas = document.createElement('div');
   canvas.id = 'qn-canvas';
   const card = document.createElement('article');
   card.className = 'qn-card';
+  card.dataset.qnId = 'm01';
+  const body = document.createElement('div');
+  body.className = 'qn-card-body';
+  const text = document.createElement('p');
+  text.className = 'qn-card-text';
+  text.textContent = '预置留言正文';
+  body.appendChild(text);
+  const replybox = document.createElement('div');
+  replybox.className = 'qn-card-replybox';
+  const replyBtn = document.createElement('button');
+  replyBtn.type = 'button';
+  replyBtn.className = 'qn-card-replybtn';
+  replyBtn.textContent = '↳ 回复';
+  const replyForm = document.createElement('form');
+  replyForm.className = 'qn-reply-form';
+  replyForm.hidden = true;
+  const replyInput = document.createElement('input');
+  replyInput.className = 'qn-reply-input';
+  const replySend = document.createElement('button');
+  replySend.type = 'submit';
+  replySend.className = 'qn-reply-send';
+  const replyStatus = document.createElement('span');
+  replyStatus.className = 'qn-reply-status';
+  replyForm.append(replyInput, replySend, replyStatus);
+  replybox.append(replyBtn, replyForm);
+  card.append(body, replybox);
   canvas.appendChild(card);
 
   const form = document.createElement('form');
@@ -128,6 +154,89 @@ describe('initWall 页面流程', () => {
     submit(document.getElementById('qn-wall-form') as HTMLFormElement);
     expect(status.textContent).toContain('已满');
     expect(loadStore().messages).toHaveLength(30);
+  });
+});
+
+describe('回复流程（§12.4 任意卡可匿名回复）', () => {
+  /** 取 m01 卡的回复输入控件 */
+  function replyControls() {
+    const card = document.querySelector<HTMLElement>('.qn-card[data-qn-id="m01"]') as HTMLElement;
+    return {
+      card,
+      btn: card.querySelector<HTMLElement>('.qn-card-replybtn') as HTMLElement,
+      form: card.querySelector<HTMLFormElement>('.qn-reply-form') as HTMLFormElement,
+      input: card.querySelector<HTMLInputElement>('.qn-reply-input') as HTMLInputElement,
+      status: card.querySelector<HTMLElement>('.qn-reply-status') as HTMLElement,
+    };
+  }
+
+  it('点「↳ 回复」展开内联输入，再点收起', () => {
+    initWall();
+    const { btn, form } = replyControls();
+    expect(form.hidden).toBe(true);
+    btn.click();
+    expect(form.hidden).toBe(false);
+    btn.click();
+    expect(form.hidden).toBe(true);
+  });
+
+  it('提交回复 → 卡内追加「↳ 匿名回复：…」缩进行且落库', () => {
+    initWall();
+    const { card, form, input } = replyControls();
+    document.querySelector<HTMLElement>('.qn-card-replybtn')?.click();
+    input.value = '楼上说得对';
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    const line = card.querySelector('.qn-card-replies .qn-card-reply');
+    expect(line).not.toBeNull();
+    expect(line?.textContent).toContain('匿名回复：楼上说得对');
+    expect(line?.textContent).toContain('↳');
+    // 落库：统一 key = 卡 id
+    const store = loadStore();
+    expect(store.replies['m01']).toHaveLength(1);
+    expect(store.replies['m01'][0].text).toBe('楼上说得对');
+    // 成功后收起并清空
+    expect(form.hidden).toBe(true);
+    expect(input.value).toBe('');
+  });
+
+  it('刷新留存：已存回复由 renderStoredReplies 回显到对应卡', () => {
+    window.localStorage.setItem(
+      'qn-wall-messages',
+      JSON.stringify({
+        v: 1,
+        messages: [],
+        replies: { m01: [{ id: 'r-keep', text: '之前回的一句', createdAt: Date.now() }] },
+      }),
+    );
+    initWall();
+    const line = document.querySelector<HTMLElement>(
+      '.qn-card[data-qn-id="m01"] .qn-card-replies .qn-card-reply',
+    );
+    expect(line?.textContent).toContain('匿名回复：之前回的一句');
+  });
+
+  it('空提交拒绝（不落库），201 字截断至 200', () => {
+    initWall();
+    const { form, input, status } = replyControls();
+    document.querySelector<HTMLElement>('.qn-card-replybtn')?.click();
+
+    input.value = '   ';
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    expect(status.textContent).toContain('先写点什么');
+    expect(loadStore().replies['m01']).toBeUndefined();
+
+    input.value = '好'.repeat(201);
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    const stored = loadStore().replies['m01'];
+    expect(stored).toHaveLength(1);
+    expect(stored[0].text.length).toBe(200);
+    // 卡内缩进行与落库文本一致（截断后的 200 字）
+    const line = document.querySelector<HTMLElement>(
+      '.qn-card[data-qn-id="m01"] .qn-card-replies .qn-card-reply',
+    );
+    expect(line?.textContent).toContain('匿名回复：');
+    expect(line?.textContent?.split('匿名回复：')[1]?.length).toBe(200);
   });
 });
 
