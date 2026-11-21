@@ -1,0 +1,221 @@
+---
+/**
+ * 服务页：8 项服务卡片化目录（设计稿 §7 服务页 / §9.2 服务清单 / 实施计划任务 9 Step 1）
+ *
+ * 每项一个终端窗口卡片，含「做什么（desc）/ 技术栈（stack）/ 交付物（deliverable）」；
+ * icon 沿用 assets/icons 现有图标，icon 为空串的服务不渲染图标（与产品目录 mnp 同约定）。
+ *
+ * GEO（设计稿 §8）：全部正文服务端直出；JSON-LD 为 ItemList（8 个 Service item）；
+ * title/description/canonical 由 Base 直出，每页唯一。
+ */
+import { Image, type ImageMetadata } from 'astro:assets';
+import Base from '../layouts/Base.astro';
+import TermWindow from '../components/TermWindow.astro';
+import services from '../../data/services.json';
+
+// icon 文件名存于 services.json，构建期 glob 一次性解析到图片模块
+const icons = import.meta.glob<{ default: ImageMetadata }>('../../assets/icons/*.png');
+
+// 预解析每个服务的图标模块（icon 为空串则 undefined，渲染时不显图）
+const rows = await Promise.all(
+  services.map(async (s) => {
+    const module = s.icon ? icons[`../../assets/icons/${s.icon}`] : undefined;
+    return { s, icon: module ? (await module()).default : undefined };
+  }),
+);
+
+// JSON-LD：ItemList 含 8 个 Service item（name/description 与页面可见内容一致）
+const serviceLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  itemListElement: services.map((s, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    item: {
+      '@type': 'Service',
+      name: s.name,
+      description: s.desc,
+      provider: { '@type': 'Organization', name: '青柠软件' },
+    },
+  })),
+};
+---
+
+<Base
+  title="服务 — 石家庄青柠软件技术有限公司"
+  description="青柠软件提供 8 项软件开发服务：移动应用与小程序开发、多行业平台开发、快速原型与 UI/UX 设计、方案与需求功能设计、物联网与嵌入式系统研发、AI Agent / 大模型应用开发、软件平台 AI 能力改造、开源项目与 Gitee/GitHub 托管。"
+  pageName="服务"
+>
+  <script type="application/ld+json" set:html={JSON.stringify(serviceLd)} />
+
+  <main class="qn-sv">
+    <!-- 面屑：~ / services -->
+    <nav class="qn-crumbs" aria-label="面包屑">
+      <a href="/">~</a><span class="qn-csep" aria-hidden="true"> / </span
+      ><span class="qn-chere">services</span>
+    </nav>
+
+    <h1 class="qn-title">青柠软件服务目录</h1>
+    <p class="qn-intro">
+      共 {services.length} 项服务，覆盖从需求方案、原型设计到应用研发、AI
+      能力落地的软件全流程——每项服务均注明做什么、用什么技术栈、交付什么。
+    </p>
+
+    <!-- 8 项服务 = 8 个终端窗口卡片（grid 两列，窄屏纵排） -->
+    <div class="qn-grid">
+      {
+        rows.map(({ s, icon }) => (
+          <TermWindow title={`service: ${s.name}`}>
+            <article class="qn-card">
+              <h2 class="qn-card-name">
+                {icon && (
+                  <Image
+                    src={icon}
+                    alt=""
+                    width={28}
+                    densities={[1, 2]}
+                    format="webp"
+                    loading="lazy"
+                    class="qn-card-icon"
+                  />
+                )}
+                {s.name}
+              </h2>
+              <p class="qn-card-desc">{s.desc}</p>
+              <dl class="qn-card-meta">
+                <div class="qn-card-row">
+                  <dt>技术栈</dt>
+                  <dd>
+                    <ul class="qn-card-stack">
+                      {s.stack.map((item) => (
+                        <li>{item}</li>
+                      ))}
+                    </ul>
+                  </dd>
+                </div>
+                <div class="qn-card-row">
+                  <dt>交付物</dt>
+                  <dd>{s.deliverable}</dd>
+                </div>
+              </dl>
+            </article>
+          </TermWindow>
+        ))
+      }
+    </div>
+  </main>
+</Base>
+
+<style>
+  .qn-sv {
+    max-width: 1020px;
+    margin: 0 auto;
+    padding: 48px 16px 96px;
+  }
+
+  .qn-crumbs {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 32px;
+  }
+
+  .qn-chere {
+    color: var(--text);
+  }
+
+  .qn-title {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.3;
+  }
+
+  .qn-intro {
+    margin: 10px 0 32px;
+    font-size: 15px;
+    color: var(--text-dim);
+  }
+
+  /* ---- 8 卡片：两列网格，窄屏纵排 ---- */
+  .qn-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+
+  .qn-card-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.4;
+  }
+
+  /* 卡片图标：icon 为空串的服务整段不渲染（物联网/AI 两项现无图标） */
+  .qn-card-icon {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+  }
+
+  .qn-card-desc {
+    margin: 12px 0 0;
+    font-size: 14px;
+  }
+
+  /* ---- 做什么 / 技术栈 / 交付物：man 手册式缩进定义列表 ---- */
+  .qn-card-meta {
+    margin: 16px 0 0;
+    font-size: 13px;
+  }
+
+  .qn-card-row + .qn-card-row {
+    margin-top: 10px;
+  }
+
+  .qn-card-meta dt {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .qn-card-meta dd {
+    margin: 4px 0 0;
+  }
+
+  .qn-card-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--font-mono);
+  }
+
+  /* 技术栈标签：小胶囊，与终端窗口语言一致 */
+  .qn-card-stack li {
+    padding: 2px 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+  }
+
+  /* ---- 移动端：单列，标题收缩 ---- */
+  @media (max-width: 768px) {
+    .qn-sv {
+      padding-top: 32px;
+    }
+
+    .qn-title {
+      font-size: 22px;
+    }
+
+    .qn-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

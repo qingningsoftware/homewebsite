@@ -94,4 +94,18 @@ describe('typeLines', () => {
     await typeLines(c, []);
     expect(c.children).toHaveLength(1);
   });
+
+  it('cps 为 0 或负数时被钳制，仍能正常打完（不产生 Infinity 延时）', async () => {
+    const c0 = buildContainer(1);
+    const p0 = typeLines(c0, ['ab'], { cps: 0 });
+    await vi.advanceTimersByTimeAsync(10_000);
+    await p0;
+    expect(c0.children[0].textContent).toBe('ab');
+
+    const cNeg = buildContainer(1);
+    const pNeg = typeLines(cNeg, ['xy'], { cps: -5 });
+    await vi.advanceTimersByTimeAsync(10_000);
+    await pNeg;
+    expect(cNeg.children[0].textContent).toBe('xy');
+  });
 });

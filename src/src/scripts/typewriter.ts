@@ -84,7 +84,9 @@ export async function typeLines(
     node.data = '';
     for (let j = 1; j <= target.length; j++) {
       node.data = target.slice(0, j);
-      await sleep(1000 / cps);
+      // cps 钳制：cps ≤ 0（或 NaN）时 1000/cps 会得到 Infinity/负数延时，
+      // 打字会卡死不动；钳到不低于 1，保证逐字推进始终成立。
+      await sleep(1000 / Math.max(1, cps));
     }
     el.removeAttribute('data-typing');
     el.classList.add('qn-done');
