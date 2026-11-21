@@ -344,14 +344,14 @@
   }
 
   @media (max-width: 768px) {
-    /* JS 就绪（.qn-cli-ready）才允许收纳——无 JS 时命令行保持原样全显 */
+    /* JS 就绪（.qn-cli-ready）才收纳并亮出开关——无 JS 时命令行保持原样全显 */
     .qn-term-body.qn-cli-ready:not(.qn-cli-open) .qn-cli,
     .qn-term-body.qn-cli-ready:not(.qn-cli-open) .qn-out,
     .qn-term-body.qn-cli-ready:not(.qn-cli-open) .qn-hint {
       display: none;
     }
 
-    .qn-cli-toggle {
+    .qn-term-body.qn-cli-ready .qn-cli-toggle {
       display: inline-block;
     }
   }
