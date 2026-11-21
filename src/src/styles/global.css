@@ -1,0 +1,117 @@
+/* ============================================================
+   青柠软件官网 — 全局设计系统
+   色板与字体来源：doc/2026-11-20-青柠软件官网-设计稿.md §5
+   ============================================================ */
+
+:root {
+  /* ---- 色板（终端暗色） ---- */
+  --bg: #0a0a0a;         /* 页面主背景 */
+  --bg-alt: #111113;     /* 交替区块背景 */
+  --panel: #161618;      /* 面板/卡片 */
+  --border: #2a2a2e;     /* 面板边框（1px） */
+  --lime: #a3e635;       /* 青柠绿：品牌强调 */
+  --lime-hover: #bef264; /* 青柠绿 hover 提亮 */
+  --green-dim: #65a30d;  /* 暗绿：辅助 */
+  --text: #e5e7eb;       /* 正文 */
+  --text-dim: #8b8b92;   /* 次要文字 */
+  --success: #4ade80;    /* 语义色：成功 */
+  --warning: #fbbf24;    /* 语义色：警告 */
+  --error: #f87171;      /* 语义色：错误 */
+  --row-hover: #1c1c1f;  /* 行 hover 高亮（设计稿 §5 终端质感） */
+
+  /* ---- 字体双栈（不加载 webfont，保证首屏速度） ---- */
+  --font-mono: ui-monospace, 'JetBrains Mono', 'Fira Code', Consolas, monospace; /* 标题/代码感元素 */
+  --font-sans: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;     /* 中文正文 */
+}
+
+/* ---- 基础 reset ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.7;
+}
+
+/* 等宽标题 + 黑体正文，是本站的基本节奏（设计稿 §5） */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+code,
+pre,
+kbd {
+  font-family: var(--font-mono);
+}
+
+a {
+  color: var(--lime);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--lime-hover);
+}
+
+/* ---- 键盘可达性：焦点青柠描边 ---- */
+:focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: 2px;
+}
+
+/* ---- 扫描线 / CRT 纹理覆盖层（设计稿 §5：opacity ≤ 0.03，不干扰阅读） ----
+   由 Base.astro 在 body 末尾放置 .scanlines 元素，纯装饰不响应指针 */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0.03;
+  background: repeating-linear-gradient(
+    to bottom,
+    #000 0,
+    #000 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* ---- 状态符（设计稿 §5：✓ 绿 / ! 黄 / ✗ 红） ----
+   用法：<span class="st-ok">多厂家设备接入</span> 自动前置绿色 ✓ */
+.st-ok::before {
+  content: '✓ ';
+  color: var(--success);
+}
+
+.st-warn::before {
+  content: '! ';
+  color: var(--warning);
+}
+
+.st-err::before {
+  content: '✗ ';
+  color: var(--error);
+}
+
+/* ---- 动效总闸：prefers-reduced-motion 下全部动效直接显示为静态 ----
+   后续任务在此块内追加精细覆盖（如打字机文本、Boot 层、逐行输出的静态回退） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

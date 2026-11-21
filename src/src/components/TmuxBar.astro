@@ -1,0 +1,231 @@
+---
+/**
+ * 全站常驻 tmux 状态栏（设计稿 §6.7）
+ * 桌面（>768px）：底部单行状态栏 = 会话名 + 页名 / 导航链接 / 绿点 + 备案入口
+ * 移动端（≤768px）：顶部简化栏 + 底栏导航（功能等价，均服务端直出）
+ */
+interface Props {
+  /** 当前页名，显示在窗口列表（默认「主站」） */
+  pageName?: string;
+}
+
+const { pageName = '主站' } = Astro.props;
+
+// 全站导航（设计稿 §6.7：产品/服务/Agent/留言墙/关于/联系）
+const nav = [
+  { href: '/products/', label: '产品' },
+  { href: '/services/', label: '服务' },
+  { href: '/agent/', label: 'Agent' },
+  { href: '/wall/', label: '留言墙' },
+  { href: '/about/', label: '关于' },
+  { href: '/contact/', label: '联系' },
+] as const;
+---
+
+<!-- 桌面端：底部 tmux 状态栏 -->
+<nav class="tmux-bar" aria-label="全站导航">
+  <div class="tmux-left">
+    <span class="tmux-session">[0:qn-主站]</span>
+    <span class="tmux-page">{pageName}</span>
+  </div>
+  <ul class="tmux-nav">
+    {
+      nav.map((item) => (
+        <li>
+          <a href={item.href}>{item.label}</a>
+        </li>
+      ))
+    }
+  </ul>
+  <div class="tmux-right">
+    <span class="dot" aria-hidden="true"></span>
+    <!-- 备案号沿用旧站 data.json，上线前需人工核验是否有效 -->
+    <a
+      class="beian"
+      href="https://beian.miit.gov.cn/"
+      target="_blank"
+      rel="noopener noreferrer">冀ICP备16009674号-2</a
+    >
+  </div>
+</nav>
+
+<!-- 移动端：顶部简化栏 -->
+<header class="m-top">
+  <span class="tmux-session">[0:qn-主站]</span>
+  <span class="tmux-page">{pageName}</span>
+  <a
+    class="beian"
+    href="https://beian.miit.gov.cn/"
+    target="_blank"
+    rel="noopener noreferrer">冀ICP备16009674号-2</a
+  >
+</header>
+
+<!-- 移动端：底栏导航 -->
+<nav class="m-tabbar" aria-label="主导航">
+  {
+    nav.map((item) => (
+      <a href={item.href}>{item.label}</a>
+    ))
+  }
+</nav>
+
+<style>
+  /* 桌面底栏与移动端底栏的高度，body 需预留同等空间避免内容被遮 */
+  :global(body) {
+    padding-bottom: 33px;
+  }
+
+  /* ---- 桌面端：底部 tmux 状态栏 ---- */
+  .tmux-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    height: 32px;
+    padding: 0 12px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .tmux-left {
+    display: flex;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .tmux-session {
+    color: var(--lime);
+  }
+
+  .tmux-page {
+    color: var(--text-dim);
+  }
+
+  .tmux-nav {
+    display: flex;
+    flex: 1;
+    justify-content: center;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tmux-nav a {
+    display: block;
+    padding: 4px 8px;
+    color: var(--text);
+  }
+
+  .tmux-nav a:hover {
+    background: var(--row-hover);
+    color: var(--lime-hover);
+  }
+
+  .tmux-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  /* 在线绿点：轻微呼吸（reduced-motion 下由全局总闸停为静态） */
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: dot-pulse 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes dot-pulse {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.5;
+    }
+  }
+
+  .beian {
+    color: var(--text-dim);
+    font-size: 11px;
+  }
+
+  .beian:hover {
+    color: var(--text);
+  }
+
+  /* ---- 移动端组件：桌面默认隐藏 ---- */
+  .m-top,
+  .m-tabbar {
+    display: none;
+  }
+
+  /* ---- 移动端（≤768px）：顶部简化栏 + 底栏导航（设计稿 §6.7） ---- */
+  @media (max-width: 768px) {
+    .tmux-bar {
+      display: none;
+    }
+
+    .m-top {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      height: 40px;
+      padding: 0 10px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .m-tabbar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      padding-bottom: env(safe-area-inset-bottom);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .m-tabbar a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 48px;
+      color: var(--text);
+    }
+
+    .m-tabbar a:hover {
+      background: var(--row-hover);
+      color: var(--lime-hover);
+    }
+
+    :global(body) {
+      padding-top: 40px;
+      padding-bottom: calc(48px + env(safe-area-inset-bottom));
+    }
+  }
+</style>

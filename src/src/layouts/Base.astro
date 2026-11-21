@@ -1,0 +1,45 @@
+---
+/**
+ * 全站基础布局：head 元数据直出 + tmux 状态栏 + 扫描线覆盖层
+ * GEO 要求（设计稿 §8）：title/description/canonical/Open Graph 全部服务端直出
+ */
+import '../styles/global.css';
+import TmuxBar from '../components/TmuxBar.astro';
+
+interface Props {
+  /** 页面标题（每页唯一） */
+  title: string;
+  /** 页面描述（每页唯一） */
+  description: string;
+  /** 当前页名，显示在 tmux 状态栏窗口列表（默认「主站」） */
+  pageName?: string;
+}
+
+const { title, description, pageName = '主站' } = Astro.props;
+
+// canonical = 站点基准域名 + 当前路径
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical.href} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical.href} />
+    <meta name="theme-color" content="#0A0A0A" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+  </head>
+  <body>
+    <slot />
+    <TmuxBar pageName={pageName} />
+    <div class="scanlines" aria-hidden="true"></div>
+  </body>
+</html>
