@@ -150,13 +150,15 @@ export function addReply(cardId: string, text: string): AddResult {
   return { ok: true, msg };
 }
 
-/** 删除指定本机留言（id 不存在时静默无操作） */
+/** 删除指定本机留言（id 不存在时静默无操作）；该卡名下的本机回复一并清理，
+ *  避免孤儿回复残留继续占用 30 条额度 */
 export function removeMessage(id: string): void {
   if (!storageAvailable()) return;
   const store = loadStore();
   const next = store.messages.filter((m) => m.id !== id);
   if (next.length === store.messages.length) return;
   store.messages = next;
+  if (Array.isArray(store.replies[id])) delete store.replies[id];
   saveStore(store);
 }
 

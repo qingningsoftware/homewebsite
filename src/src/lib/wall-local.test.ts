@@ -140,6 +140,16 @@ describe('removeMessage / removeReply / clearLocal', () => {
     expect(s.messages[0].text).toBe('乙');
   });
 
+  it('removeMessage 一并清理该卡名下的回复（不留占额度的孤儿）', () => {
+    const a = addMessage('带回复的卡');
+    if (!a.ok) return;
+    addReply(a.msg.id, '这条回复跟卡一起删');
+    removeMessage(a.msg.id);
+    const s = loadStore();
+    expect(s.messages).toHaveLength(0);
+    expect(s.replies[a.msg.id]).toBeUndefined();
+  });
+
   it('removeReply 删除指定卡下的指定回复', () => {
     const r = addMessage('根');
     if (!r.ok) return;

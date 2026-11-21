@@ -141,7 +141,11 @@ function appendReplyToCard(card: HTMLElement, text: string, isNew: boolean): voi
   list.appendChild(buildReplyLine(text, isNew));
 }
 
-/** 回显：把已存本机回复渲染到对应卡（预置/本机卡统一按 data-qn-id 找） */
+/**
+ * 回显：把已存本机回复渲染到画布内已有的卡（即 SSR 直出的预置卡）。
+ * 本机卡不在此列——此刻尚未插入 DOM，其回显由 buildLocalCard 重建时自带；
+ * 因此 renderMySection 全量重建（提交新留言触发）不会丢已显示的回复行。
+ */
 export function renderStoredReplies(): void {
   const { replies } = loadStore();
   for (const cardId of Object.keys(replies)) {
@@ -154,7 +158,10 @@ export function renderStoredReplies(): void {
 }
 
 /** 搭一张本机留言卡（结构与 WallCard.astro 直出卡一致；textContent 防 XSS） */
-function buildLocalCard(entry: { id: string; text: string; createdAt: number }): HTMLElement {
+function buildLocalCard(
+  entry: { id: string; text: string; createdAt: number },
+  entryReplies: Array<{ text: string }> = [],
+): HTMLElement {
   const card = document.createElement('article');
   card.className = 'qn-card qn-local';
   card.dataset.qnId = entry.id;
@@ -189,6 +196,16 @@ function buildLocalCard(entry: { id: string; text: string; createdAt: number }):
   text.className = 'qn-card-text';
   text.textContent = entry.text; // 只走 textContent，绝不 innerHTML
   body.appendChild(text);
+
+  // 已存本机回复随卡重建回显（刷新留存、renderMySection 全量重建两场景都靠这里）
+  if (entryReplies.length > 0) {
+    const list = document.createElement('div');
+    list.className = 'qn-card-replies';
+    for (const r of entryReplies) {
+      list.appendChild(buildReplyLine(r.text, false));
+    }
+    body.appendChild(list);
+  }
 
   const meta = document.createElement('footer');
   meta.className = 'qn-card-meta';
@@ -244,15 +261,18 @@ function ensureMySection(canvas: HTMLElement): { section: HTMLElement; grid: HTM
   };
 }
 
-/** 重画本机区：按存储全量重建卡片与计数（简单可靠，30 条上限下无性能问题） */
+/** 重画本机区：按存储全量重建卡片与计数（简单可靠，30 条上限下无性能问题）；
+ *  重建时每张卡自带其已存回复（buildLocalCard），已显示的回复行不因重建丢失 */
 function renderMySection(canvas: HTMLElement): void {
-  const { messages } = loadStore();
+  const { messages, replies } = loadStore();
   if (messages.length === 0) {
     document.getElementById('qn-my')?.remove();
     return;
   }
   const { section, grid, note } = ensureMySection(canvas);
-  grid.replaceChildren(...messages.map(buildLocalCard));
+  grid.replaceChildren(
+    ...messages.map((m) => buildLocalCard(m, replies[m.id] ?? [])),
+  );
   note.textContent = `以下 ${messages.length} 条只保存在这台浏览器里（上限 ${MAX_ENTRIES} 条），换设备或清缓存即消失。`;
   section.dataset.count = String(messages.length);
 }

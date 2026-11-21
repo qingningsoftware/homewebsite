@@ -240,6 +240,48 @@ describe('回复流程（§12.4 任意卡可匿名回复）', () => {
   });
 });
 
+describe('本机卡回复回显与重建保留（审阅修复锁定）', () => {
+  /** 造一条已存本机留言 + 其回复的存储 */
+  function seedLocalWithReply(): string {
+    const cardId = 'local-card-1';
+    window.localStorage.setItem(
+      'qn-wall-messages',
+      JSON.stringify({
+        v: 1,
+        messages: [{ id: cardId, text: '带回复的本机留言', createdAt: Date.now() }],
+        replies: { [cardId]: [{ id: 'r-x', text: '本机卡上的一条回复', createdAt: Date.now() }] },
+      }),
+    );
+    return cardId;
+  }
+
+  it('① 初始化后本机卡的已存回复回显可见（刷新留存）', () => {
+    seedLocalWithReply();
+    initWall();
+    const line = document.querySelector<HTMLElement>('.qn-local .qn-card-replies .qn-card-reply');
+    expect(line).not.toBeNull();
+    expect(line?.textContent).toContain('匿名回复：本机卡上的一条回复');
+  });
+
+  it('② 提交新留言触发全量重建后，先前本机卡上的回复行仍在', () => {
+    seedLocalWithReply();
+    initWall();
+    // 先确认回显行在
+    expect(
+      document.querySelector<HTMLElement>('.qn-local .qn-card-replies .qn-card-reply'),
+    ).not.toBeNull();
+    // 再提交一条新留言 → renderMySection 全量 replaceChildren
+    const input = document.getElementById('qn-wall-input') as HTMLTextAreaElement;
+    input.value = '新会话再发一条';
+    submit(document.getElementById('qn-wall-form') as HTMLFormElement);
+    // 重建后两张本机卡都在，第一张的回复行仍在（数据回显，非残留 DOM）
+    const cards = document.querySelectorAll<HTMLElement>('.qn-local');
+    expect(cards).toHaveLength(2);
+    const line = cards[0].querySelector('.qn-card-replies .qn-card-reply');
+    expect(line?.textContent).toContain('匿名回复：本机卡上的一条回复');
+  });
+});
+
 describe('relativeTime 真实相对时间', () => {
   it('刚刚 / N 分钟前 / N 小时前 / N 天前', () => {
     const now = Date.now();
