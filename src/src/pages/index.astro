@@ -1,9 +1,8 @@
 ---
 /**
- * 首页（设计稿 §6 / 实施计划任务 5）
+ * 首页（设计稿 §6 / 实施计划任务 5、7）
  *
- * §6.2 Hero（任务 4）+ §6.3–6.6 主体（本任务）：
- * 产品部署会话回放 / 产品进程列表 / Agent 预告 + 迷你留言墙占位 / sysmon 数据行。
+ * §6.2 Hero（任务 4）+ §6.3–6.6 主体（任务 5）+ §12.2 迷你留言墙（任务 7）。
  *
  * GEO 约定：全部正文（回放行、进程表、对话、数据行）服务端直出；
  * 打字机只是 CSS + IntersectionObserver 增强——进场触发一次，
@@ -13,9 +12,8 @@ import Base from '../layouts/Base.astro';
 import Boot from '../components/Boot.astro';
 import HeroCli from '../components/HeroCli.astro';
 import TermWindow from '../components/TermWindow.astro';
-import MiniWallPlaceholder from '../components/MiniWallPlaceholder.astro';
+import MiniWall from '../components/MiniWall.astro';
 import { getCollection } from 'astro:content';
-import wallMessages from '../../data/wall-messages.json';
 
 // 产品集合（任务 3 产物）：按 order 排序，一次取全
 const products = (await getCollection('products')).sort(
@@ -43,12 +41,13 @@ const pacsLines = replayLines('pacs');
 const smart = products.find((e) => e.id === 'smart-community');
 const pacs = products.find((e) => e.id === 'pacs');
 
-// 进程列表装饰值（ps aux 观感，无实际语义；PID 列 = 上线年份是真数据）
-const PS_CPU = ['3.2', '2.8', '2.1', '1.6', '1.2', '0.8'];
-const PS_STAT = ['Ss', 'S', 'Ss', 'S', 'Ss', 'S'];
+// 进程列表只渲染其余 4 个产品：两大主打（smart-community、pacs）已在 §6.3
+// 回放区登场，进程列表不再重复（设计稿 §6.4「不抢主打的戏」）。
+const psProducts = products.filter((p) => p.id !== 'smart-community' && p.id !== 'pacs');
 
-// 迷你墙计数：import JSON 取 length，不写死（任务 7 换真组件时沿用）
-const wallCount = wallMessages.length;
+// 进程列表装饰值（ps aux 观感，无实际语义；PID 列 = 上线年份是真数据）
+const PS_CPU = ['3.2', '2.8', '2.1', '1.6'];
+const PS_STAT = ['Ss', 'S', 'Ss', 'S'];
 ---
 
 <Base
@@ -74,7 +73,7 @@ const wallCount = wallMessages.length;
                     <span class="qn-tail">{` ..... ${tail}`}</span>
                   </div>
                 ))}
-                <a class="qn-rmore" href="/products/smart-community/">
+                <a class="qn-rmore" href={`/products/${smart.id}/`}>
                   → 查看详情
                 </a>
               </div>
@@ -92,7 +91,7 @@ const wallCount = wallMessages.length;
                     <span class="qn-tail">{` ..... ${tail}`}</span>
                   </div>
                 ))}
-                <a class="qn-rmore" href="/products/pacs/">
+                <a class="qn-rmore" href={`/products/${pacs.id}/`}>
                   → 查看详情
                 </a>
               </div>
@@ -102,14 +101,14 @@ const wallCount = wallMessages.length;
       </div>
     </section>
 
-    <!-- §6.4 全部产品 = 进程列表（PID 列 = 上线年份） -->
+    <!-- §6.4 其余产品 = 进程列表（PID 列 = 上线年份；两大主打已在回放区） -->
     <section class="qn-section qn-block">
-      <h2 class="qn-sr-only">全部产品一览</h2>
+      <h2 class="qn-sr-only">其余产品一览</h2>
       <TermWindow title="qn@qingning:~ $ ps aux | grep qn">
         <div class="qn-ps-scroll">
           <table class="qn-ps">
             <caption class="qn-sr-only">
-              青柠软件产品进程列表：PID 列为产品上线年份，COMMAND 列为产品简介
+              青柠软件其余产品进程列表：PID 列为产品上线年份，COMMAND 列为产品简介
             </caption>
             <thead>
               <tr>
@@ -122,7 +121,7 @@ const wallCount = wallMessages.length;
             </thead>
             <tbody>
               {
-                products.map((p, i) => (
+                psProducts.map((p, i) => (
                   <tr>
                     <td>qn</td>
                     <td class="qn-ps-pid">{p.data.year}</td>
@@ -169,7 +168,7 @@ const wallCount = wallMessages.length;
           </TermWindow>
         </div>
         <div class="qn-agent-side">
-          <MiniWallPlaceholder count={wallCount} />
+          <MiniWall />
         </div>
       </div>
     </section>

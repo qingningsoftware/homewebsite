@@ -1,0 +1,313 @@
+---
+/**
+ * 首页迷你留言墙（实施计划任务 7；设计稿 §12.2）
+ *
+ * GEO 约定：标题伪命令、最新 3 条迷你卡、「共 N 条信号」全部服务端直出；
+ * 打字 / 轮播 / 扫光 / 光尘 / 计数修正只是 mini-wall.ts 的渐进增强——
+ * 无 JS / prefers-reduced-motion 时 3 条静态完整显示，计数保持 N = json.length。
+ *
+ * 样式 is:global：轮播新卡由脚本 createElement 逐节点搭建（同 WallCard 约定），
+ * 拿不到 scoped 哈希——统一 qn-mw- 前缀防冲突。
+ */
+import { mulberry32 } from '../lib/rng';
+import wallMessages from '../../data/wall-messages.json';
+
+// SSR：按 json 顺序取末 3 条（墙上最新的 3 条信号）
+const last3 = wallMessages.slice(-3);
+
+// 构建期固定种子（mulberry32(7)）生成 ±2.5° 内联角度——同一产物所有人看到相同 HTML
+const rng = mulberry32(7);
+const angles = last3.map(() => (rng() * 2 - 1) * 2.5);
+---
+
+<aside class="qn-mw" id="qn-mw" aria-label="留言墙预告">
+  <p class="qn-mw-cmd">
+    <span data-line>~ ❯ watch -n3 tail -3 /wall/msgs.log</span>
+    <span class="qn-mw-live" aria-hidden="true"></span>
+  </p>
+  <div class="qn-mw-body">
+    {
+      last3.map((m, i) => (
+        <article class="qn-mw-card" style={`--fr:${angles[i].toFixed(2)}deg`}>
+          <div class="qn-mw-tilt">
+            <div class="qn-mw-card-head">
+              <span class="qn-mw-file">
+                {m.type === 'broadcast' ? 'broadcast.log' : `msg_${m.id}.log`}
+              </span>
+              {m.type === 'broadcast' && <span class="qn-mw-tag">[广播]</span>}
+            </div>
+            <p class="qn-mw-card-text">{m.text}</p>
+            <div class="qn-mw-card-date">{`[${m.date}]`}</div>
+          </div>
+        </article>
+      ))
+    }
+  </div>
+  <div class="qn-mw-foot">
+    <a class="qn-mw-cta" href="/wall/">→ 进入留言墙</a>
+    <span class="qn-mw-count">共 {wallMessages.length} 条信号</span>
+  </div>
+</aside>
+
+<script>
+  import { initMiniWall } from '../scripts/mini-wall';
+  initMiniWall();
+</script>
+
+<style is:global>
+  /* ============================================================
+     迷你留言墙（全局：轮播卡由 mini-wall.ts 逐节点搭建，无法带 scoped 哈希）
+     ============================================================ */
+
+  .qn-mw {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    font-family: var(--font-mono);
+  }
+
+  /* ---- 伪命令标题 + live 绿点 ---- */
+  .qn-mw-cmd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .qn-mw-cmd [data-line] {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .qn-mw-live {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: qn-mw-pulse 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes qn-mw-pulse {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.4;
+    }
+  }
+
+  /* ---- 卡区：SSR 3 张迷你卡纵排；轮播时由脚本固定高度裁切，不推挤页面 ---- */
+  .qn-mw-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  .qn-mw-card {
+    flex: none;
+  }
+
+  /* 落卡进场（.qn-mw-enter）与最旧淡出下沉（.qn-mw-exit）；角度在内层 tilt，互不打架 */
+  .qn-mw-card.qn-mw-enter {
+    animation: qn-mw-drop 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.18) both;
+  }
+
+  @keyframes qn-mw-drop {
+    from {
+      opacity: 0;
+      transform: translateY(-46px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .qn-mw-card.qn-mw-exit {
+    animation: qn-mw-sink 0.45s ease both;
+  }
+
+  @keyframes qn-mw-sink {
+    to {
+      opacity: 0;
+      transform: translateY(26px);
+    }
+  }
+
+  /* ---- 迷你卡：内层 tilt 承担 ±2.5° 散角，悬停扶正 + 青柠辉光（同墙卡手法） ---- */
+  .qn-mw-tilt {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    transform: rotate(var(--fr, 0deg));
+    transition:
+      transform 0.3s ease,
+      border-color 0.3s ease,
+      box-shadow 0.3s ease;
+  }
+
+  .qn-mw-card:hover .qn-mw-tilt {
+    transform: rotate(0deg);
+    border-color: var(--lime);
+    box-shadow: 0 0 14px rgba(163, 230, 53, 0.22);
+  }
+
+  .qn-mw-card-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px 0;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .qn-mw-file {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .qn-mw-tag {
+    flex: none;
+    margin-left: auto;
+    color: var(--warning);
+    font-weight: 700;
+  }
+
+  .qn-mw-card-text {
+    margin: 0;
+    padding: 4px 10px 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--text);
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .qn-mw-card-date {
+    padding: 4px 10px 8px;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  /* ---- 氛围层：极淡扫光线（6s/轮）+ 光尘上浮（峰值透明度 ≤0.07，脚本建） ---- */
+  .qn-mw-sweep {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(163, 230, 53, 0.06) 50%,
+      transparent 60%
+    );
+    background-size: 300% 100%;
+    animation: qn-mw-sweep 6s linear infinite;
+  }
+
+  @keyframes qn-mw-sweep {
+    from {
+      background-position: 130% 0;
+    }
+    to {
+      background-position: -130% 0;
+    }
+  }
+
+  .qn-mw-dust {
+    position: absolute;
+    bottom: 56px;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--lime);
+    opacity: 0;
+    pointer-events: none;
+    animation-name: qn-mw-dust;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  @keyframes qn-mw-dust {
+    0% {
+      transform: translateY(0);
+      opacity: 0;
+    }
+    20% {
+      opacity: 0.07;
+    }
+    80% {
+      opacity: 0.05;
+    }
+    100% {
+      transform: translateY(-180px);
+      opacity: 0;
+    }
+  }
+
+  /* ---- 底部：青柠实底 CTA（2.8s 呼吸辉光，悬停提亮上浮）+ 计数 ---- */
+  .qn-mw-foot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .qn-mw-cta {
+    display: inline-block;
+    padding: 6px 14px;
+    background: var(--lime);
+    border-radius: 4px;
+    color: #0a0a0a;
+    font-size: 13px;
+    font-weight: 700;
+    animation: qn-mw-breath 2.8s ease-in-out infinite;
+    transition:
+      background 0.25s ease,
+      transform 0.25s ease;
+  }
+
+  .qn-mw-cta:hover {
+    background: var(--lime-hover);
+    color: #0a0a0a;
+    transform: translateY(-2px);
+  }
+
+  @keyframes qn-mw-breath {
+    0%,
+    100% {
+      box-shadow: 0 0 0 rgba(163, 230, 53, 0);
+    }
+    50% {
+      box-shadow: 0 0 16px rgba(163, 230, 53, 0.35);
+    }
+  }
+
+  .qn-mw-count {
+    font-size: 12px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+</style>

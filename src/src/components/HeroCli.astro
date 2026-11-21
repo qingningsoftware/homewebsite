@@ -31,6 +31,18 @@
         </p>
       </div>
 
+      <!-- 移动端（≤768px）命令行收纳开关（设计稿 §6.2「移动端命令行收纳为菜单按钮，功能等价」）：
+           默认隐藏，JS 就绪后才在移动端亮出；点击展开/收起下方命令行与输出区 -->
+      <button
+        id="qn-cli-toggle"
+        type="button"
+        class="qn-cli-toggle"
+        aria-expanded="false"
+        aria-controls="qn-cli"
+      >
+        ~ ❯ 打开
+      </button>
+
       <form id="qn-cli" class="qn-cli" autocomplete="off">
         <label class="qn-sr-only" for="qn-cli-input">输入命令（试试 help、products、contact）</label>
         <span class="qn-prompt" aria-hidden="true">~ ❯</span>
@@ -99,6 +111,20 @@
   }
 
   /* ---------- 真命令行：回车执行 runCommand ---------- */
+  // 移动端收纳：JS 就绪后打 qn-cli-ready（无 JS 不收纳，保持桌面同款全显），
+  // 开关只切换展开态，命令行功能与桌面完全等价。
+  const termBody = document.querySelector('.qn-term-body');
+  const cliToggle = document.getElementById('qn-cli-toggle') as HTMLButtonElement | null;
+  if (termBody && cliToggle) {
+    termBody.classList.add('qn-cli-ready');
+    cliToggle.addEventListener('click', () => {
+      const open = termBody.classList.toggle('qn-cli-open');
+      cliToggle.setAttribute('aria-expanded', String(open));
+      cliToggle.textContent = open ? '~ ❯ 收起' : '~ ❯ 打开';
+      if (open) input?.focus();
+    });
+  }
+
   function appendLine(text: string, cls: string) {
     const div = document.createElement('div');
     div.className = `qn-out-line ${cls}`;
@@ -297,6 +323,37 @@
     margin: 16px 0 0;
     color: var(--text-dim);
     font-size: 13px;
+  }
+
+  /* ---- 移动端命令行收纳（设计稿 §6.2）：默认隐藏开关，桌面不变 ---- */
+  .qn-cli-toggle {
+    display: none;
+    margin: 0 0 10px;
+    padding: 6px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--lime);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .qn-cli-toggle:hover {
+    border-color: var(--lime);
+  }
+
+  @media (max-width: 768px) {
+    /* JS 就绪（.qn-cli-ready）才允许收纳——无 JS 时命令行保持原样全显 */
+    .qn-term-body.qn-cli-ready:not(.qn-cli-open) .qn-cli,
+    .qn-term-body.qn-cli-ready:not(.qn-cli-open) .qn-out,
+    .qn-term-body.qn-cli-ready:not(.qn-cli-open) .qn-hint {
+      display: none;
+    }
+
+    .qn-cli-toggle {
+      display: inline-block;
+    }
   }
 
   /* ---- 无障碍辅助类 ---- */
