@@ -95,17 +95,27 @@ describe('typeLines', () => {
     expect(c.children).toHaveLength(1);
   });
 
-  it('cps 为 0 或负数时被钳制，仍能正常打完（不产生 Infinity 延时）', async () => {
-    const c0 = buildContainer(1);
-    const p0 = typeLines(c0, ['ab'], { cps: 0 });
+  it('cps=0 被钳制为逐秒推进：推进 500ms 仅打出首字符，之后能打完', async () => {
+    // 判别性断言：钳制生效 → cps 视同 1，每字 1000ms，500ms 时只有 'a'；
+    // 若钳制被移除，fake timers 下 1000/0=Infinity 立即触发，500ms 时已是 'ab'，本用例变红。
+    const c = buildContainer(1);
+    const p = typeLines(c, ['ab'], { cps: 0 });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(c.children[0].textContent).toBe('a');
     await vi.advanceTimersByTimeAsync(10_000);
-    await p0;
-    expect(c0.children[0].textContent).toBe('ab');
+    await p;
+    expect(c.children[0].textContent).toBe('ab');
+  });
 
-    const cNeg = buildContainer(1);
-    const pNeg = typeLines(cNeg, ['xy'], { cps: -5 });
+  it('cps=-5 被钳制为逐秒推进：推进 500ms 仅打出首字符，之后能打完', async () => {
+    // 判别性断言：若钳制被移除，1000/-5=-200ms 负延时在 fake timers 下立即触发，
+    // 500ms 时已是 'xy'，本用例变红；钳制生效则视同 1cps，500ms 时只有 'x'。
+    const c = buildContainer(1);
+    const p = typeLines(c, ['xy'], { cps: -5 });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(c.children[0].textContent).toBe('x');
     await vi.advanceTimersByTimeAsync(10_000);
-    await pNeg;
-    expect(cNeg.children[0].textContent).toBe('xy');
+    await p;
+    expect(c.children[0].textContent).toBe('xy');
   });
 });
