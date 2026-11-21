@@ -1,7 +1,54 @@
 ---
+/**
+ * 首页（设计稿 §6 / 实施计划任务 5）
+ *
+ * §6.2 Hero（任务 4）+ §6.3–6.6 主体（本任务）：
+ * 产品部署会话回放 / 产品进程列表 / Agent 预告 + 迷你留言墙占位 / sysmon 数据行。
+ *
+ * GEO 约定：全部正文（回放行、进程表、对话、数据行）服务端直出；
+ * 打字机只是 CSS + IntersectionObserver 增强——进场触发一次，
+ * 无 JS / reduced-motion / 不支持 IO 时一律静态显示。
+ */
 import Base from '../layouts/Base.astro';
 import Boot from '../components/Boot.astro';
 import HeroCli from '../components/HeroCli.astro';
+import TermWindow from '../components/TermWindow.astro';
+import MiniWallPlaceholder from '../components/MiniWallPlaceholder.astro';
+import { getCollection } from 'astro:content';
+import wallMessages from '../../data/wall-messages.json';
+
+// 产品集合（任务 3 产物）：按 order 排序，一次取全
+const products = (await getCollection('products')).sort(
+  (a, b) => a.data.order - b.data.order,
+);
+
+/** 两大主打的回放行尾注：与 frontmatter features 一一对应（从 audience/deploy 归纳，缺省「已就绪」） */
+const REPLAY_TAILS: Record<string, string[]> = {
+  'smart-community': ['多品牌通用', '已就绪', '已就绪', '已就绪', '已上线', '三端协同', '物业适用'],
+  pacs: ['多级医院', '免客户端', '数据不出院', '跨机构协作', '已就绪'],
+};
+
+/** 回放行数据：feature 主文本 + 短尾注 */
+function replayLines(id: string): Array<{ feature: string; tail: string }> {
+  const p = products.find((e) => e.id === id);
+  if (!p) return [];
+  return p.data.features.map((feature, i) => ({
+    feature,
+    tail: REPLAY_TAILS[id]?.[i] ?? '已就绪',
+  }));
+}
+
+const smartLines = replayLines('smart-community');
+const pacsLines = replayLines('pacs');
+const smart = products.find((e) => e.id === 'smart-community');
+const pacs = products.find((e) => e.id === 'pacs');
+
+// 进程列表装饰值（ps aux 观感，无实际语义；PID 列 = 上线年份是真数据）
+const PS_CPU = ['3.2', '2.8', '2.1', '1.6', '1.2', '0.8'];
+const PS_STAT = ['Ss', 'S', 'Ss', 'S', 'Ss', 'S'];
+
+// 迷你墙计数：import JSON 取 length，不写死（任务 7 换真组件时沿用）
+const wallCount = wallMessages.length;
 ---
 
 <Base
@@ -10,8 +57,427 @@ import HeroCli from '../components/HeroCli.astro';
 >
   <Boot />
   <main>
-    <!-- §6.2 Hero = 伪命令行（本任务） -->
     <HeroCli />
-    <!-- §6.3–6.6 后续任务在此追加：产品会话回放、进程列表、Agent 预告 + 迷你留言墙、数据行 -->
+
+    <!-- §6.3 两大产品 = 部署会话回放（滚动进视口逐行打字，文本已直出） -->
+    <section class="qn-section qn-block">
+      <h2 class="qn-sr-only">明星产品部署会话回放</h2>
+      <div class="qn-showcase">
+        {
+          smart && (
+            <TermWindow title={`deploy: ${smart.data.name}`}>
+              <div class="qn-replay" data-qn-replay>
+                <p class="qn-rhead">{`${smart.data.title} — 部署会话回放`}</p>
+                {smartLines.map(({ feature, tail }) => (
+                  <div class="qn-rline" data-line>
+                    {`✓ ${feature}`}
+                    <span class="qn-tail">{` ..... ${tail}`}</span>
+                  </div>
+                ))}
+                <a class="qn-rmore" href="/products/smart-community/">
+                  → 查看详情
+                </a>
+              </div>
+            </TermWindow>
+          )
+        }
+        {
+          pacs && (
+            <TermWindow title={`deploy: ${pacs.data.name}`}>
+              <div class="qn-replay" data-qn-replay>
+                <p class="qn-rhead">{`${pacs.data.title} — 部署会话回放`}</p>
+                {pacsLines.map(({ feature, tail }) => (
+                  <div class="qn-rline" data-line>
+                    {`✓ ${feature}`}
+                    <span class="qn-tail">{` ..... ${tail}`}</span>
+                  </div>
+                ))}
+                <a class="qn-rmore" href="/products/pacs/">
+                  → 查看详情
+                </a>
+              </div>
+            </TermWindow>
+          )
+        }
+      </div>
+    </section>
+
+    <!-- §6.4 全部产品 = 进程列表（PID 列 = 上线年份） -->
+    <section class="qn-section qn-block">
+      <h2 class="qn-sr-only">全部产品一览</h2>
+      <TermWindow title="qn@qingning:~ $ ps aux | grep qn">
+        <div class="qn-ps-scroll">
+          <table class="qn-ps">
+            <caption class="qn-sr-only">
+              青柠软件产品进程列表：PID 列为产品上线年份，COMMAND 列为产品简介
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">USER</th>
+                <th scope="col">PID</th>
+                <th scope="col">%CPU</th>
+                <th scope="col">STAT</th>
+                <th scope="col">COMMAND</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                products.map((p, i) => (
+                  <tr>
+                    <td>qn</td>
+                    <td class="qn-ps-pid">{p.data.year}</td>
+                    <td class="qn-ps-dim">{PS_CPU[i] ?? ''}</td>
+                    <td class="qn-ps-dim">{PS_STAT[i] ?? ''}</td>
+                    <td class="qn-ps-cmd">
+                      <a href={`/products/${p.id}/`}>{p.data.name}</a>
+                      <span class="qn-ps-desc">{` — ${p.data.oneLiner}`}</span>
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </TermWindow>
+    </section>
+
+    <!-- §6.5 Agent 板块预告 + 迷你留言墙（同带并排，迷你墙约 390px） -->
+    <section class="qn-section qn-block">
+      <h2 class="qn-sr-only">AI Agent 定制开发与留言墙</h2>
+      <div class="qn-agent-row">
+        <div class="qn-agent-main">
+          <TermWindow title="agent: replay">
+            <div class="qn-conv">
+              <p class="qn-c-user">~ ❯ 我们想给智慧社区平台加一个「AI 管家」，能做吗？</p>
+              <p class="qn-c-think"><span class="qn-c-mark" aria-hidden="true">◆</span> 思考中</p>
+              <p class="qn-c-tool">
+                调用工具 <code>search_services()</code>
+              </p>
+              <div class="qn-c-card">
+                <p class="qn-c-card-title">search_services() → 匹配 2 项</p>
+                <ol>
+                  <li>AI Agent / 大模型应用开发 — LLM API · RAG · Function Calling · 工作流引擎</li>
+                  <li>软件平台 AI 能力改造 — 报修语音工单 · 访客意图识别 · 存量平台加 AI</li>
+                </ol>
+              </div>
+              <p class="qn-c-final">
+                可以。我们把 Agent 真正部署进客户业务：新建智能体与存量产品 AI
+                融合两条线都在做。
+              </p>
+              <a class="qn-rmore" href="/agent/">→ /agent/</a>
+            </div>
+          </TermWindow>
+        </div>
+        <div class="qn-agent-side">
+          <MiniWallPlaceholder count={wallCount} />
+        </div>
+      </div>
+    </section>
+
+    <!-- §6.6 数据行（sysmon 风格等宽数据条） -->
+    <section class="qn-section qn-block qn-stats">
+      <h2 class="qn-sr-only">站点运行数据</h2>
+      <p class="qn-sysmon">
+        <span class="qn-sy-hot">uptime 10年</span><span class="qn-sy-sep">{' · '}</span><span
+          >软著 10项</span
+        ><span class="qn-sy-sep">{' · '}</span><span>解决方案 6套</span
+        ><span class="qn-sy-sep">{' · '}</span><span>Gitee 开源</span>
+      </p>
+    </section>
   </main>
 </Base>
+
+<script>
+  import { typeLines } from '../scripts/typewriter';
+
+  /**
+   * §6.3 产品部署回放增强：滚动进视口时对 [data-qn-replay] 容器逐行打字（一次，不重复）。
+   * 正文已服务端直出——无 JS / reduced-motion / 不支持 IntersectionObserver 时不加
+   * 任何状态类，全部静态显示。
+   */
+  const reduce =
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (!reduce && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          io.unobserve(entry.target); // 进场触发一次，不重复
+          void play(entry.target as HTMLElement);
+        }
+      },
+      { threshold: 0.2 },
+    );
+    document.querySelectorAll<HTMLElement>('[data-qn-replay]').forEach((el) => io.observe(el));
+  }
+
+  /** 打一段回放：收集直出行主文本（首个文本节点）→ 加打字态 → typeLines → 复原 */
+  async function play(container: HTMLElement): Promise<void> {
+    const lines = Array.from(
+      container.querySelectorAll<HTMLElement>(':scope > [data-line]'),
+    ).map((el) => {
+      const first = el.firstChild;
+      // 行主文本 = 首个文本节点；行内装饰 span（..... 尾注）不参与打字
+      return first && first.nodeType === 3 ? (first.textContent ?? '') : (el.textContent ?? '');
+    });
+    container.classList.add('qn-typing');
+    await typeLines(container, lines);
+    container.classList.remove('qn-typing');
+    container.classList.add('qn-done');
+  }
+</script>
+
+<style>
+  /* ---- 区块容器：正文统一 1020px（Hero 保持任务 4 的 760px 聚焦宽度） ---- */
+  .qn-section {
+    max-width: 1020px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  .qn-block {
+    margin-top: 72px;
+  }
+
+  .qn-stats {
+    margin-bottom: 96px;
+  }
+
+  /* ---- 无障碍：仅供爬虫与读屏的语义标题 ---- */
+  .qn-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ---- §6.3 两大回放：纵排两个终端窗口 ---- */
+  .qn-showcase {
+    display: grid;
+    gap: 24px;
+  }
+
+  .qn-replay {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 2.1;
+  }
+
+  .qn-rhead {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .qn-rline {
+    color: var(--text);
+    word-break: break-all;
+  }
+
+  /* 尾注（..... 已上线 之类）：dim 色，打字期间由状态类控制亮出 */
+  .qn-tail {
+    color: var(--text-dim);
+  }
+
+  .qn-rmore {
+    display: inline-block;
+    margin-top: 10px;
+    font-weight: 600;
+  }
+
+  /* ---- 打字增强状态（脚本加 .qn-typing / 行 .qn-done / data-typing） ----
+     无 JS / reduced-motion 时这些类不存在，内容原样静态显示 */
+  .qn-replay.qn-typing .qn-rline:not(.qn-done) .qn-tail {
+    visibility: hidden; /* 未打完的行先藏尾注，行完成（qn-done）后亮出 */
+  }
+
+  .qn-replay.qn-typing .qn-rmore {
+    visibility: hidden; /* 回放末行的链接等全部行打完再亮出 */
+  }
+
+  .qn-replay [data-typing]::after {
+    content: '▊';
+    color: var(--lime);
+    animation: qn-blink 0.9s steps(1) infinite;
+  }
+
+  @keyframes qn-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* ---- §6.4 进程列表（ps aux 风格等宽表格） ---- */
+  .qn-ps-scroll {
+    overflow-x: auto; /* 窄屏横向滚动，表格不挤压换列 */
+  }
+
+  .qn-ps {
+    width: 100%;
+    min-width: 640px;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .qn-ps th,
+  .qn-ps td {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .qn-ps thead th {
+    color: var(--text-dim);
+    font-weight: 400;
+    font-size: 12px;
+  }
+
+  .qn-ps tbody tr:hover {
+    background: var(--row-hover);
+  }
+
+  .qn-ps tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .qn-ps-pid {
+    color: var(--lime);
+  }
+
+  .qn-ps-dim {
+    color: var(--text-dim);
+  }
+
+  /* COMMAND 列：产品名链接 + 一句话定位，允许换行 */
+  .qn-ps td.qn-ps-cmd {
+    white-space: normal;
+    min-width: 320px;
+  }
+
+  .qn-ps-desc {
+    color: var(--text-dim);
+  }
+
+  /* ---- §6.5 Agent 预告 + 迷你墙：同带并排，迷你墙固定约 390px ---- */
+  .qn-agent-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 390px;
+    gap: 24px;
+    align-items: stretch;
+  }
+
+  .qn-conv {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 2;
+  }
+
+  .qn-conv p {
+    margin: 0;
+  }
+
+  .qn-c-user {
+    color: var(--lime);
+  }
+
+  /* ◆ 思考中：标记呼吸（reduced-motion 由全局总闸停为静态） */
+  .qn-c-think {
+    color: var(--text-dim);
+  }
+
+  .qn-c-mark {
+    display: inline-block;
+    color: var(--warning);
+    animation: qn-think-pulse 1.2s ease-in-out infinite alternate;
+  }
+
+  /* keyframes 随 scoped 样式重命名，须在本组件内定义（不可跨组件引用） */
+  @keyframes qn-think-pulse {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.4;
+    }
+  }
+
+  .qn-c-tool {
+    color: var(--text);
+  }
+
+  .qn-c-tool code {
+    color: var(--lime);
+    font-size: 13px;
+  }
+
+  /* 工具返回的结果卡片 */
+  .qn-c-card {
+    margin: 10px 0;
+    padding: 10px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--lime);
+    border-radius: 4px;
+  }
+
+  .qn-c-card-title {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  .qn-c-card ol {
+    margin: 4px 0 0;
+    padding-left: 20px;
+  }
+
+  .qn-c-card li {
+    color: var(--text);
+  }
+
+  .qn-c-final {
+    color: var(--text);
+  }
+
+  /* ---- §6.6 数据行（sysmon 风格等宽数据条） ---- */
+  .qn-sysmon {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 0;
+    padding: 14px 18px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .qn-sy-hot {
+    color: var(--lime);
+  }
+
+  .qn-sy-sep {
+    color: var(--text-dim);
+  }
+
+  /* ---- 移动端（≤768px）：Agent 带纵排堆叠 ---- */
+  @media (max-width: 768px) {
+    .qn-agent-row {
+      grid-template-columns: 1fr;
+    }
+
+    .qn-block {
+      margin-top: 56px;
+    }
+  }
+</style>

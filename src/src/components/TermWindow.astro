@@ -1,0 +1,66 @@
+---
+/**
+ * 终端窗口面板（设计稿 §6.3 / 实施计划任务 5 Step 1）
+ *
+ * 纯展示组件：`● ● ●` 装饰 + 等宽标题 + <slot>，无脚本无逻辑。
+ * 视觉语言与 HeroCli 的伪命令行窗口一致（panel 底 + 1px 边框 + 小圆角）。
+ */
+interface Props {
+  /** 窗口标题（等宽小字，如 `deploy: 智尚通行`） */
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<div class="qn-tw">
+  <div class="qn-tw-head">
+    <span class="qn-tw-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span class="qn-tw-title">{title}</span>
+  </div>
+  <div class="qn-tw-body">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .qn-tw {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .qn-tw-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .qn-tw-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .qn-tw-dots i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .qn-tw-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .qn-tw-body {
+    padding: 20px 18px;
+  }
+</style>

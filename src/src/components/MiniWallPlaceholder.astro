@@ -1,0 +1,114 @@
+---
+/**
+ * 迷你留言墙「占位」组件（实施计划任务 5 Step 4；任务 7 将整体替换为真轮播组件）
+ *
+ * 只负责占位观感与「共 N 条信号」计数直出（GEO：文本服务端直出，不写死数字）。
+ * 独立成组件便于任务 7 无痛替换（props 契约保持 {count: number}）。
+ */
+interface Props {
+  /** 预置留言条数（调用方传 wall-messages.json 的 length，不写死） */
+  count: number;
+}
+
+const { count } = Astro.props;
+---
+
+<aside class="qn-mw" aria-label="留言墙预告">
+  <p class="qn-mw-cmd">
+    <span>watch -n3 tail -3 /wall/msgs.log</span>
+    <span class="qn-mw-live" aria-hidden="true"></span>
+  </p>
+  <div class="qn-mw-body">
+    <p class="qn-mw-note">
+      留言墙即将开放：匿名留言、匿名回复，只保存在你自己的浏览器里，不经过任何服务器。
+    </p>
+  </div>
+  <div class="qn-mw-foot">
+    <a class="qn-mw-cta" href="/wall/">→ 进入留言墙</a>
+    <span class="qn-mw-count">共 {count} 条信号</span>
+  </div>
+</aside>
+
+<style>
+  .qn-mw {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    font-family: var(--font-mono);
+  }
+
+  /* ---- 伪命令标题 + live 绿点 ---- */
+  .qn-mw-cmd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .qn-mw-live {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: qn-mw-pulse 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes qn-mw-pulse {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.4;
+    }
+  }
+
+  /* ---- 占位说明 ---- */
+  .qn-mw-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 20px 16px;
+  }
+
+  .qn-mw-note {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.8;
+  }
+
+  /* ---- 底部：入口 + 计数 ---- */
+  .qn-mw-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .qn-mw-cta {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .qn-mw-count {
+    font-size: 12px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+</style>
