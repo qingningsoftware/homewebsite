@@ -50,8 +50,9 @@ server {
 
 # ---------- 裸域 HTTPS 301 → www ----------
 # （TLS 握手发生在跳转之前，本块也需要证书）
+# 启用 HTTP/2：Nginx ≥1.25.1 可改用 listen 443 ssl; + http2 on; 的分离写法
 server {
-    listen 443 ssl;
+    listen 443 ssl http2;
     server_name qingningsoft.cn;
 
     ssl_certificate     /etc/nginx/qingningsoft.cn.pem;
@@ -62,7 +63,7 @@ server {
 
 # ---------- www 主站 ----------
 server {
-    listen 443 ssl;
+    listen 443 ssl http2;
     server_name www.qingningsoft.cn;
 
     ssl_certificate     /etc/nginx/qingningsoft.cn.pem;

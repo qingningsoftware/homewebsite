@@ -15,6 +15,7 @@
 import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
 import TermWindow from '../components/TermWindow.astro';
+import { toLdJson } from '../lib/ld';
 
 // 二维码本地资产（旧站 socialicons 迁移本地化）：
 // qywx.jpg 企业微信 / qqqr.png QQ / xhsw.png 小红书（xhs.png 是 96px 小图标，真正的二维码是 xhsw.png）
@@ -57,7 +58,7 @@ const contactLd = {
   description={`联系青柠软件：电话 ${PHONE}，邮箱 ${EMAIL}，地址${ADDRESS}；企业微信、QQ、小红书二维码与 Gitee 开源主页。`}
   pageName="联系"
 >
-  <script type="application/ld+json" set:html={JSON.stringify(contactLd)} />
+  <script type="application/ld+json" set:html={toLdJson(contactLd)} />
 
   <main class="qn-contact">
     <!-- 面屑：~ / contact -->

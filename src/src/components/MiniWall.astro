@@ -12,8 +12,9 @@
 import { mulberry32 } from '../lib/rng';
 import wallMessages from '../../data/wall-messages.json';
 
-// SSR：按 json 顺序取末 3 条（墙上最新的 3 条信号）
-const last3 = wallMessages.slice(-3);
+// SSR：取末 3 条并反转直出（最新在顶）——与轮播「顶部落新卡、底部出旧卡」方向一致，
+// 否则首轮轮播会先把最新的信号（底端卡）挤出去
+const last3 = [...wallMessages.slice(-3)].reverse();
 
 // 构建期固定种子（mulberry32(7)）生成 ±2.5° 内联角度——同一产物所有人看到相同 HTML
 const rng = mulberry32(7);

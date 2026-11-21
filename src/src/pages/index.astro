@@ -14,6 +14,7 @@ import HeroCli from '../components/HeroCli.astro';
 import TermWindow from '../components/TermWindow.astro';
 import MiniWall from '../components/MiniWall.astro';
 import { getCollection } from 'astro:content';
+import { toLdJson } from '../lib/ld';
 
 // 产品集合（任务 3 产物）：按 order 排序，一次取全
 const products = (await getCollection('products')).sort(
@@ -72,9 +73,6 @@ const websiteLd = {
   name: '石家庄青柠软件技术有限公司',
   url: Astro.site?.href,
 };
-
-// JSON-LD 注入统一把 `<` 转义为 <，防止内容中出现的尖括号提前闭合 script 标签
-const toLdJson = (data: object): string => JSON.stringify(data).replace(/</g, '\\u003c');
 ---
 
 <Base

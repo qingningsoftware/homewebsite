@@ -15,6 +15,7 @@
 import { Image, type ImageMetadata } from 'astro:assets';
 import Base from '../layouts/Base.astro';
 import TermWindow from '../components/TermWindow.astro';
+import { toLdJson } from '../lib/ld';
 import certificates from '../../data/certificates.json';
 
 // 证书图文件名存于 certificates.json，构建期 glob 一次性解析到图片模块
@@ -56,7 +57,7 @@ const orgLd = {
   description="青柠软件（石家庄青柠软件技术有限公司）成立于 2016 年，专注软件平台、移动应用与物联网开发，服务政府机关、企事业单位与个人定制客户，累计登记软件著作权 10 项。本页含公司简介、软著证书墙与发展时间线。"
   pageName="关于"
 >
-  <script type="application/ld+json" set:html={JSON.stringify(orgLd)} />
+  <script type="application/ld+json" set:html={toLdJson(orgLd)} />
 
   <main class="qn-about">
     <!-- 面屑：~ / about -->
