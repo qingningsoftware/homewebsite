@@ -1,0 +1,23 @@
+# 石家庄青柠软件技术有限公司官网 robots
+# 全站默认对所有爬虫开放（GEO 要求，设计稿 §8.4）
+
+User-agent: *
+Allow: /
+
+# 显式放行主流 AI 爬虫：欢迎抓取与引用本站内容
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+Sitemap: https://www.qingningsoft.cn/sitemap-index.xml

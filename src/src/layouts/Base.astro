@@ -5,6 +5,14 @@
  */
 import '../styles/global.css';
 import TmuxBar from '../components/TmuxBar.astro';
+import { type ImageMetadata } from 'astro:assets';
+
+/**
+ * 百度统计 ID（设计稿 §8.8，全站唯一第三方脚本）：
+ * 公司侧提供后填入此处，部署文档会写明填写位置；留空时不输出统计脚本，
+ * 避免向 hm.baidu.com 发出无效请求。
+ */
+export const BAIDU_TONGJI_ID = '';
 
 interface Props {
   /** 页面标题（每页唯一） */
@@ -19,6 +27,12 @@ const { title, description, pageName = '主站' } = Astro.props;
 
 // canonical = 站点基准域名 + 当前路径
 const canonical = new URL(Astro.url.pathname, Astro.site);
+
+// og:image（GEO 要求，设计稿 §8.5）：全站用智慧社区 banner，构建期解析为绝对 URL
+const banners = import.meta.glob<{ default: ImageMetadata }>('../../assets/banners/*.png');
+const smartBanner = banners['../../assets/banners/smart-community.png'];
+const smartBannerImg = smartBanner ? (await smartBanner()).default : undefined;
+const ogImage = smartBannerImg ? new URL(smartBannerImg.src, Astro.site).href : undefined;
 ---
 
 <!doctype html>
@@ -33,6 +47,8 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical.href} />
+    <meta property="og:site_name" content="石家庄青柠软件技术有限公司" />
+    {ogImage && <meta property="og:image" content={ogImage} />}
     <meta name="theme-color" content="#0A0A0A" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
@@ -41,5 +57,11 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <slot />
     <TmuxBar pageName={pageName} />
     <div class="scanlines" aria-hidden="true"></div>
+    {
+      // 百度统计：异步加载（ID 填入 BAIDU_TONGJI_ID 后才会输出本脚本）
+      BAIDU_TONGJI_ID && (
+        <script is:inline async src={`https://hm.baidu.com/hm.js?${BAIDU_TONGJI_ID}`} />
+      )
+    }
   </body>
 </html>

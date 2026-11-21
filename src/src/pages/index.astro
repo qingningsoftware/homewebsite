@@ -48,12 +48,42 @@ const psProducts = products.filter((p) => p.id !== 'smart-community' && p.id !==
 // 进程列表装饰值（ps aux 观感，无实际语义；PID 列 = 上线年份是真数据）
 const PS_CPU = ['3.2', '2.8', '2.1', '1.6'];
 const PS_STAT = ['Ss', 'S', 'Ss', 'S'];
+
+// GEO（设计稿 §8.2）：首页注入 Organization + WebSite 结构化数据。
+// sameAs 只写 Gitee（旧站模板作者的个人 GitHub/Twitter 等遗留信息禁止带入）。
+const orgLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: '石家庄青柠软件技术有限公司',
+  url: Astro.site?.href,
+  logo: new URL('/favicon.svg', Astro.site).href,
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: '河北省石家庄市裕华区河北地质大学综合楼',
+    addressCountry: 'CN',
+  },
+  telephone: '+86-311-83937882',
+  sameAs: ['https://gitee.com/qnsoft'],
+};
+
+const websiteLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: '石家庄青柠软件技术有限公司',
+  url: Astro.site?.href,
+};
+
+// JSON-LD 注入统一把 `<` 转义为 <，防止内容中出现的尖括号提前闭合 script 标签
+const toLdJson = (data: object): string => JSON.stringify(data).replace(/</g, '\\u003c');
 ---
 
 <Base
   title="石家庄青柠软件技术有限公司 — 智慧社区与医疗影像软件研发团队"
   description="青柠软件成立于 2016 年，专注智慧社区平台与医疗影像 PACS 研发：多厂家设备接入、微信小程序、纯 Web 影像诊断，10 项软著、6 套解决方案、2800+ 院校库。"
 >
+  <script type="application/ld+json" set:html={toLdJson(orgLd)} />
+  <script type="application/ld+json" set:html={toLdJson(websiteLd)} />
+
   <Boot />
   <main>
     <HeroCli />

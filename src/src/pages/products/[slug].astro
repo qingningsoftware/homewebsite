@@ -66,8 +66,9 @@ const faqLd = {
 ---
 
 <Base title={`${data.title} — 石家庄青柠软件技术有限公司`} description={data.oneLiner} pageName="产品">
-  <script type="application/ld+json" set:html={JSON.stringify(productLd)} />
-  <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
+  <!-- JSON-LD 注入把 `<` 转义为 <，防止内容尖括号提前闭合 script 标签 -->
+  <script type="application/ld+json" set:html={JSON.stringify(productLd).replace(/</g, '\\u003c')} />
+  <script type="application/ld+json" set:html={JSON.stringify(faqLd).replace(/</g, '\\u003c')} />
 
   <main class="qn-man">
     <!-- 面屑：~ / products / {slug} -->

@@ -46,7 +46,8 @@ const serviceLd = {
   description="青柠软件提供 8 项软件开发服务：移动应用与小程序开发、多行业平台开发、快速原型与 UI/UX 设计、方案与需求功能设计、物联网与嵌入式系统研发、AI Agent / 大模型应用开发、软件平台 AI 能力改造、开源项目与 Gitee/GitHub 托管。"
   pageName="服务"
 >
-  <script type="application/ld+json" set:html={JSON.stringify(serviceLd)} />
+  <!-- JSON-LD 注入把 `<` 转义为 <，防止内容尖括号提前闭合 script 标签 -->
+  <script type="application/ld+json" set:html={JSON.stringify(serviceLd).replace(/</g, '\\u003c')} />
 
   <main class="qn-sv">
     <!-- 面屑：~ / services -->
