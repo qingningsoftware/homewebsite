@@ -18,6 +18,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 图片一律迁移本地化（`src/assets/`），不热链旧域名 www.qingningsoft.cn 之外的旧资源路径。
 - 内容数字走定性描述（用户已拍板），只保留硬事实（2016 成立、软著 10 项、6 套方案、2800+ 院校库）。
 
-## 待补
+## 构建与内容维护
 
-Astro 项目初始化后，在此补充构建/开发命令与内容集合约定。
+命令一律在 `src/` 内执行：
+
+- `npm test` —— vitest 全部单测（含遗留信息守卫、cps 回归等）
+- `npm run dev` / `npm run build` —— 开发 / 构建产物 `src/dist/`（`npm run preview` 本地预览产物）
+- `node scripts/check-dist.mjs`（仓库根执行）—— 构建后全量验收：禁入词、每页 title/canonical、必含文案直出
+
+内容与数据（纯静态：**改内容 → `npm run build` 重建 → 部署 `src/dist/`**）：
+
+- 产品页：`src/src/content/products/*.md`（Astro 内容集合，frontmatter + man 结构正文，一产品一文件）
+- 结构化数据：`src/data/` 下 `services.json`（8 项服务）、`wall-messages.json`（留言墙 12 条）、`certificates.json`（软著 10 项）
+- 文档指引：设计稿 `doc/2026-11-20-青柠软件官网-设计稿.md`、实施计划 `doc/2026-11-21-官网重建-实施计划.md`、部署文档 `doc/部署-Nginx.md`、进度 `doc/任务进度.md`
