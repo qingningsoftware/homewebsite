@@ -1,0 +1,243 @@
+---
+/**
+ * 联系页：`contact --info` 命令输出样式（设计稿 §7 联系页 / 实施计划任务 10）
+ *
+ * 单个终端窗口直出全部联系信息：电话（tel: 链接）/ 邮箱（mailto: 链接）/
+ * 地址（拍板口径，不含房间号）/ Gitee 链接；下方并排企业微信·QQ·小红书
+ * 三张二维码（白底保证暗色页面可扫）。无联系表单（静态站无后端）。
+ *
+ * 联系字段取旧站 data.json 公司信息原文；whatsapp / 个人 GitHub / Twitter
+ * 等模板作者遗留信息禁止出现，开源只用 Gitee 表述。
+ *
+ * GEO（设计稿 §8）：全部正文服务端直出；ContactPage + Organization JSON-LD；
+ * title/description/canonical 由 Base 直出，每页唯一。
+ */
+import { Image } from 'astro:assets';
+import Base from '../layouts/Base.astro';
+import TermWindow from '../components/TermWindow.astro';
+
+// 二维码本地资产（旧站 socialicons 迁移本地化）：
+// qywx.jpg 企业微信 / qqqr.png QQ / xhsw.png 小红书（xhs.png 是 96px 小图标，真正的二维码是 xhsw.png）
+import qywx from '../../assets/qr/qywx.jpg';
+import qqqr from '../../assets/qr/qqqr.png';
+import xhsw from '../../assets/qr/xhsw.png';
+
+// 公司联系信息：旧站 data.json 公司信息字段原文（web1/assets/assets/data.json）。
+// 地址按拍板口径「河北省石家庄市裕华区河北地质大学综合楼」（不含房间号）。
+const PHONE = '0311-83937882';
+const EMAIL = '56220691@qq.com';
+const ADDRESS = '河北省石家庄市裕华区河北地质大学综合楼';
+const GITEE = 'https://gitee.com/qnsoft';
+
+// JSON-LD：ContactPage（mainEntity 为公司 Organization，sameAs 只写 Gitee）
+const contactLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ContactPage',
+  name: '联系我们 — 石家庄青柠软件技术有限公司',
+  url: new URL(Astro.url.pathname, Astro.site).href,
+  mainEntity: {
+    '@type': 'Organization',
+    name: '石家庄青柠软件技术有限公司',
+    telephone: '+86-0311-83937882',
+    email: EMAIL,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: ADDRESS,
+      addressLocality: '石家庄市',
+      addressRegion: '河北省',
+      addressCountry: 'CN',
+    },
+    sameAs: [GITEE],
+  },
+};
+---
+
+<Base
+  title="联系我们 — 石家庄青柠软件技术有限公司"
+  description={`联系青柠软件：电话 ${PHONE}，邮箱 ${EMAIL}，地址${ADDRESS}；企业微信、QQ、小红书二维码与 Gitee 开源主页。`}
+  pageName="联系"
+>
+  <script type="application/ld+json" set:html={JSON.stringify(contactLd)} />
+
+  <main class="qn-contact">
+    <!-- 面屑：~ / contact -->
+    <nav class="qn-crumbs" aria-label="面包屑">
+      <a href="/">~</a><span class="qn-csep" aria-hidden="true"> / </span
+      ><span class="qn-chere">contact</span>
+    </nav>
+
+    <h1 class="qn-title">联系我们</h1>
+    <p class="qn-intro">直接对话比表单更快——电话、邮箱、企业微信任选其一。</p>
+
+    <!-- $ contact --info：命令输出样式的联系信息 + 二维码，全部服务端直出 -->
+    <section class="qn-block">
+      <TermWindow title="$ contact --info">
+        <dl class="qn-info">
+          <div class="qn-info-row">
+            <dt>phone</dt>
+            <dd><a class="qn-tel" href={`tel:${PHONE}`}>{PHONE}</a></dd>
+          </div>
+          <div class="qn-info-row">
+            <dt>email</dt>
+            <dd><a href={`mailto:${EMAIL}`}>{EMAIL}</a></dd>
+          </div>
+          <div class="qn-info-row">
+            <dt>address</dt>
+            <dd>{ADDRESS}</dd>
+          </div>
+          <div class="qn-info-row">
+            <dt>gitee</dt>
+            <dd>
+              <a href={GITEE} target="_blank" rel="noopener noreferrer">{GITEE}</a>
+            </dd>
+          </div>
+        </dl>
+
+        <!-- 企业微信 · QQ · 小红书 三张二维码并排（白底可扫） -->
+        <div class="qn-qr-row">
+          <figure class="qn-qr">
+            <Image
+              src={qywx}
+              alt="青柠软件企业微信二维码"
+              width={144}
+              densities={[1, 2]}
+              format="webp"
+              loading="lazy"
+            />
+            <figcaption>扫码添加企业微信</figcaption>
+          </figure>
+          <figure class="qn-qr">
+            <Image
+              src={qqqr}
+              alt="青柠软件 QQ 二维码"
+              width={144}
+              densities={[1, 2]}
+              format="webp"
+              loading="lazy"
+            />
+            <figcaption>扫码添加 QQ</figcaption>
+          </figure>
+          <figure class="qn-qr">
+            <Image
+              src={xhsw}
+              alt="青柠软件小红书二维码"
+              width={144}
+              densities={[1, 2]}
+              format="webp"
+              loading="lazy"
+            />
+            <figcaption>扫码关注小红书</figcaption>
+          </figure>
+        </div>
+      </TermWindow>
+    </section>
+  </main>
+</Base>
+
+<style>
+  .qn-contact {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 16px 96px;
+  }
+
+  .qn-crumbs {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 32px;
+  }
+
+  .qn-chere {
+    color: var(--text);
+  }
+
+  .qn-title {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.3;
+  }
+
+  .qn-intro {
+    margin: 10px 0 32px;
+    font-size: 15px;
+    color: var(--text-dim);
+  }
+
+  .qn-block {
+    margin-top: 0;
+  }
+
+  /* ---- info 输出行：字段名右对齐 + 值，man 手册式缩进节奏 ---- */
+  .qn-info {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 14px;
+  }
+
+  .qn-info-row {
+    display: flex;
+    gap: 16px;
+    padding: 4px 0;
+  }
+
+  .qn-info dt {
+    flex: none;
+    width: 72px;
+    color: var(--text-dim);
+  }
+
+  .qn-info dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .qn-tel {
+    font-weight: 700;
+  }
+
+  /* ---- 二维码：三张并排，窄屏纵排 ---- */
+  .qn-qr-row {
+    display: flex;
+    gap: 24px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .qn-qr {
+    margin: 0;
+  }
+
+  .qn-qr img {
+    display: block;
+    width: 144px;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff; /* 二维码底色，暗色页面上保证可扫 */
+  }
+
+  .qn-qr figcaption {
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  /* ---- 移动端：标题与间距收缩，二维码保持横排可换行 ---- */
+  @media (max-width: 768px) {
+    .qn-contact {
+      padding-top: 32px;
+    }
+
+    .qn-title {
+      font-size: 22px;
+    }
+
+    .qn-qr-row {
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+  }
+</style>
