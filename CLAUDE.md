@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - GEO 是核心需求：所有正文必须服务端直出 HTML，禁止依赖客户端 JS 渲染内容；结构化数据、llms.txt 等遵循设计稿 §8。
 - `data.json` 中混有 Flutter 模板作者的遗留个人信息（境外 whatsapp、个人 GitHub/Twitter、COMSATS 个人简历、假 PDF 链接），**禁止带入新站**。
 - 图片一律迁移本地化（`src/assets/`），不热链旧域名 www.qingningsoft.cn 之外的旧资源路径。
-- 内容数字走定性描述（用户已拍板），只保留硬事实（2016 成立、软著 10 项、6 套方案、2800+ 院校库）。
+- 内容数字走定性描述（用户已拍板），只保留硬事实（2016 成立、软著 10 余项（实际近 20，证书照片仅 10 张）、6 套方案、2800+ 院校库）。
 
 ## 构建与内容维护
 

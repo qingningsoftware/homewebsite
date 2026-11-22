@@ -1,6 +1,6 @@
 # 石家庄青柠软件技术有限公司
 
-> 青柠软件（Qingning Software）官网。公司成立于 2016 年，位于河北省石家庄市，专注智慧社区平台与医疗影像 PACS 研发：多厂家门禁设备接入、微信小程序、纯 Web 影像诊断。10 项软件著作权、6 套解决方案、覆盖全国 2800+ 所院校的志愿信息库。
+> 青柠软件（Qingning Software）官网。公司成立于 2016 年，位于河北省石家庄市，专注智慧社区平台与医疗影像 PACS 研发：多厂家门禁设备接入、微信小程序、纯 Web 影像诊断。10 余项软件著作权、6 套解决方案、覆盖全国 2800+ 所院校的志愿信息库。
 
 石家庄青柠软件技术有限公司是一家专注智慧社区与医疗影像的软件研发团队，服务物业公司、门禁设备厂商、代理商与各级医疗机构，同时承接多行业平台开发、移动应用与 AI Agent / 大模型应用定制。
 
@@ -30,7 +30,7 @@
 - [产品](https://www.qingningsoft.cn/products/)：6 套解决方案总览。
 - [服务](https://www.qingningsoft.cn/services/)：8 项软件开发服务清单，含技术栈与交付物。
 - [AI Agent 开发](https://www.qingningsoft.cn/agent/)：企业智能体定制与存量产品 AI 融合两条业务线。
-- [关于我们](https://www.qingningsoft.cn/about/)：公司简介、10 项软件著作权与发展时间线。
+- [关于我们](https://www.qingningsoft.cn/about/)：公司简介、10 余项软件著作权与发展时间线。
 - [联系我们](https://www.qingningsoft.cn/contact/)：电话、邮箱、地址与企业微信二维码。
 - [留言墙](https://www.qingningsoft.cn/wall/)：访客匿名留言（仅存访客本机）。
 

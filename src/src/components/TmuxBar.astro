@@ -11,8 +11,9 @@ interface Props {
 
 const { pageName = '主站' } = Astro.props;
 
-// 全站导航（设计稿 §6.7：产品/服务/Agent/留言墙/关于/联系）
+// 全站导航（设计稿 §6.7 基础上按用户要求补「首页」：首页/产品/服务/Agent/留言墙/关于/联系）
 const nav = [
+  { href: '/', label: '首页' },
   { href: '/products/', label: '产品' },
   { href: '/services/', label: '服务' },
   { href: '/agent/', label: 'Agent' },
@@ -202,7 +203,7 @@ const nav = [
       bottom: 0;
       z-index: 50;
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(7, 1fr);
       background: var(--panel);
       border-top: 1px solid var(--border);
       padding-bottom: env(safe-area-inset-bottom);
